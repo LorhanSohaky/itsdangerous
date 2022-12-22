@@ -1,0 +1,42 @@
+{
+  "name": "itsdangerous.js",
+  "version": "1.0.0",
+  "description": "Safely pass trusted data to untrusted environments and back.",
+  "keywords": [
+    "hmac",
+    "itsdangerous",
+    "pallets",
+    "python",
+    "security",
+    "serialization"
+  ],
+  "repository": "hampuskraft/itsdangerous.js",
+  "license": "MIT",
+  "sideEffects": false,
+  "type": "module",
+  "exports": "./dist/index.js",
+  "types": "./dist",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "format": "prettier --write .",
+    "prepublishOnly": "npm run -s build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "ts-mixer": "^6.0.2"
+  },
+  "devDependencies": {
+    "@tsconfig/node18-strictest-esm": "^1.0.1",
+    "@types/node": "^18.11.17",
+    "prettier": "^2.8.1",
+    "typescript": "^4.9.4",
+    "vite": "^4.0.3",
+    "vitest": "^0.26.2"
+  },
+  "engines": {
+    "node": ">=16.17"
+  }
+}
