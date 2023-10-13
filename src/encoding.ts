@@ -19,3 +19,25 @@ export function base64Decode(string: StringBuffer): Buffer {
 }
 
 export const BASE64_ALPHABET = Buffer.from('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_=');
+
+export function intToBuffer(num: number | bigint): Buffer {
+  const buf = Buffer.alloc(8);
+  buf.writeBigUInt64BE(BigInt(num));
+  let firstNonZeroIdx = 0;
+  for (; firstNonZeroIdx < buf.length; firstNonZeroIdx++) {
+    if (buf[firstNonZeroIdx] !== 0) {
+      break;
+    }
+  }
+  return buf.slice(firstNonZeroIdx);
+}
+
+export function bufferToInt(buf: Buffer): number | bigint {
+  const fullBuf = Buffer.alloc(8);
+  buf.copy(fullBuf, 8 - buf.length);
+  const num = fullBuf.readBigUInt64BE();
+  if (num <= Number.MAX_SAFE_INTEGER) {
+    return Number(num);
+  }
+  return num;
+}

@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import {hasMixin} from 'ts-mixer';
-import {base64Decode, base64Encode, wantBuffer} from './encoding.js';
+import {base64Decode, base64Encode, bufferToInt, intToBuffer, wantBuffer} from './encoding.js';
 import {BadSignature, BadTimeSignature, SignatureExpired} from './errors.js';
 import {Serializer} from './serializer.js';
 import {Signer} from './signer.js';
@@ -35,7 +35,7 @@ export class TimestampSigner extends Signer {
    */
   override sign(value: StringBuffer): Buffer {
     value = wantBuffer(value);
-    const timestamp = base64Encode(this.getTimestamp().toString());
+    const timestamp = base64Encode(intToBuffer(this.getTimestamp()));
     const sep = wantBuffer(this.sep);
     value = Buffer.concat([value, sep, timestamp]);
     return Buffer.concat([value, sep, this.getSignature(value)]);
@@ -74,7 +74,7 @@ export class TimestampSigner extends Signer {
     let timestampInt: number | undefined;
     let timestampDate: Date | undefined;
     try {
-      timestampInt = +base64Decode(timestampBuffer);
+      timestampInt = Number(bufferToInt(base64Decode(timestampBuffer)));
     } catch {}
     if (sigError != null) {
       if (timestampInt != null) {
@@ -89,7 +89,7 @@ export class TimestampSigner extends Signer {
       }
       throw new BadTimeSignature(sigError.message, value, timestampDate);
     }
-    if (timestampInt == null) {
+    if (Number.isNaN(timestampInt) || timestampInt == null) {
       throw new BadTimeSignature('Malformed timestamp', value);
     }
     if (maxAge != null) {
