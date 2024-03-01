@@ -40,7 +40,7 @@ describe('signer', () => {
 
   test('brokenSignature', () => {
     const signer = signerFactory();
-    const badSigned = signer.sign('b').slice(0, -1);
+    const badSigned = signer.sign('b').subarray(0, -1);
     const badSig = rsplit(badSigned.toString(), '.', 1)[1];
     expect(signer.verifySignature(Buffer.from('b'), badSig)).toEqual(false);
     const error = withThrows(() => signer.unsign(badSigned), BadSignature);

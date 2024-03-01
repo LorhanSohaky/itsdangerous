@@ -1,4 +1,4 @@
-import type {StringBuffer} from './types.js';
+import type {StringBuffer} from './types.ts';
 
 export function rsplit(string: StringBuffer, sep: StringBuffer, maxSplit: number): Buffer[] {
   const split = string.toString().split(sep.toString());

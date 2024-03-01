@@ -1,15 +1,16 @@
 import assert from 'node:assert';
 import {hasMixin} from 'ts-mixer';
-import {base64Decode, base64Encode, bufferToInt, intToBuffer, wantBuffer} from './encoding.js';
-import {BadSignature, BadTimeSignature, SignatureExpired} from './errors.js';
-import {Serializer} from './serializer.js';
-import {Signer} from './signer.js';
-import type {StringBuffer} from './types.js';
-import {rsplit} from './utils.js';
+import {base64Decode, base64Encode, bufferToInt, intToBuffer, wantBuffer} from './encoding.ts';
+import {BadSignature, BadTimeSignature, SignatureExpired} from './errors.ts';
+import {Serializer} from './serializer.ts';
+import {Signer} from './signer.ts';
+import type {StringBuffer} from './types.ts';
+import {rsplit} from './utils.ts';
 
 /**
- * Works like the regular `Signer` but also records the time of the signing and can be used to expire signatures. The
- * `unsign` method can throw `SignatureExpired` if the unsigning failed because the signature is expired.
+ * Works like the regular `Signer` but also records the time of the signing and
+ * can be used to expire signatures. The `unsign` method can throw
+ * `SignatureExpired` if the unsigning failed because the signature is expired.
  */
 export class TimestampSigner extends Signer {
   /**
@@ -42,9 +43,10 @@ export class TimestampSigner extends Signer {
   }
 
   /**
-   * Works like the regular `Signer.unsign` but can also validate the time. See the base comment of the class for the
-   * general behavior. If `returnTimestamp` is `true` the timestamp of the signature will be returned as a `Date`
-   * object.
+   * Works like the regular `Signer.unsign` but can also validate the time. See
+   * the base comment of the class for the general behavior. If
+   * `returnTimestamp` is `true` the timestamp of the signature will be returned
+   * as a `Date` object.
    */
   override unsign(signedValue: StringBuffer, maxAge?: number, returnTimestamp?: false): Buffer;
   override unsign(signedValue: StringBuffer, maxAge?: number, returnTimestamp?: true): [Buffer, Date];
@@ -112,7 +114,8 @@ export class TimestampSigner extends Signer {
   }
 
   /**
-   * Only validates the given signed value. Returns `true` if the signature exists and is valid.
+   * Only validates the given signed value. Returns `true` if the signature
+   * exists and is valid.
    */
   override validate(signedValue: StringBuffer, maxAge?: number): boolean {
     try {
@@ -131,9 +134,11 @@ export class TimedSerializer extends Serializer {
   override signer = TimestampSigner;
 
   /**
-   * Reverse of `stringify`, throws `BadSignature` if the signature validation fails. If a `maxAge` is provided it will
-   * ensure the signature is not older than that time in seconds. In case the signature is outdated, `SignatureExpired`
-   * is thrown. All arguments are forwarded to the signer's `TimestampSigner.unsign` method.
+   * Reverse of `stringify`, throws `BadSignature` if the signature validation
+   * fails. If a `maxAge` is provided it will ensure the signature is not older
+   * than that time in seconds. In case the signature is outdated,
+   * `SignatureExpired` is thrown. All arguments are forwarded to the signer's
+   * `TimestampSigner.unsign` method.
    */
   override parse(signed: StringBuffer, salt?: StringBuffer, maxAge?: number, returnTimestamp = false): any {
     signed = wantBuffer(signed);

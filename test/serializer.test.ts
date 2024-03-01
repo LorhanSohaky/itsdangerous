@@ -46,7 +46,7 @@ describe.each([Serializer, URLSafeSerializer, URLSafeTimedSerializer])('serializ
     const value = {id: 42};
     const original = serializer.stringify(value);
     const [payload] = rsplit(original, '.', 1);
-    const bad = serializer.makeSigner().sign(payload.slice(0, -1));
+    const bad = serializer.makeSigner().sign(payload.subarray(0, -1));
     const error = withThrows(() => serializer.parse(bad), BadPayload);
     expect(error.originalError != null).toEqual(true);
   });
@@ -59,7 +59,7 @@ describe.each([Serializer, URLSafeSerializer, URLSafeTimedSerializer])('serializ
     const badSigned = signed.slice(0, -1);
     expect(serializer.parseUnsafe(badSigned)).toEqual([false, value]);
     const [payload] = rsplit(signed, '.', 1);
-    const badPayload = serializer.makeSigner().sign(payload.slice(0, -1)).slice(0, -1);
+    const badPayload = serializer.makeSigner().sign(payload.subarray(0, -1)).subarray(0, -1);
     expect(serializer.parseUnsafe(badPayload)).toEqual([false, null]);
   });
 

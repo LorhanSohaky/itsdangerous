@@ -1,15 +1,13 @@
 {
   "compilerOptions": {
-    "declaration": true,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "lib": ["es2023"],
-    "module": "node16",
-    "moduleResolution": "node16",
-    "outDir": "dist",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "noEmit": true,
     "skipLibCheck": true,
     "strict": true,
-    "target": "es2022"
-  },
-  "include": ["src"]
+    "target": "esnext"
+  }
 }

@@ -1,5 +1,5 @@
-import {BadData} from './errors.js';
-import type {StringBuffer} from './types.js';
+import {BadData} from './errors.ts';
+import type {StringBuffer} from './types.ts';
 
 export function wantBuffer(string: StringBuffer, encoding: BufferEncoding = 'utf8'): Buffer {
   return typeof string === 'string' ? Buffer.from(string, encoding) : string;
@@ -29,7 +29,7 @@ export function intToBuffer(num: number | bigint): Buffer {
       break;
     }
   }
-  return buf.slice(firstNonZeroIdx);
+  return buf.subarray(firstNonZeroIdx);
 }
 
 export function bufferToInt(buf: Buffer): number | bigint {

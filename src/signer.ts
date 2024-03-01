@@ -1,11 +1,12 @@
 import crypto from 'node:crypto';
-import {base64Decode, base64Encode, BASE64_ALPHABET, wantBuffer} from './encoding.js';
-import {BadSignature} from './errors.js';
-import type {SecretKey, StringBuffer} from './types.js';
-import {rsplit} from './utils.js';
+import {BASE64_ALPHABET, base64Decode, base64Encode, wantBuffer} from './encoding.ts';
+import {BadSignature} from './errors.ts';
+import type {SecretKey, StringBuffer} from './types.ts';
+import {rsplit} from './utils.ts';
 
 /**
- * Subclasses must implement `getSignature` to provide signature generation functionality.
+ * Subclasses must implement `getSignature` to provide signature generation
+ * functionality.
  */
 export class SigningAlgorithm {
   digestMethod?: string;
@@ -24,7 +25,8 @@ export class SigningAlgorithm {
 }
 
 /**
- * Provides an algorithm that does not perform any signing and returns an empty signature.
+ * Provides an algorithm that does not perform any signing and returns an empty
+ * signature.
  */
 export class NoneAlgorithm extends SigningAlgorithm {
   override getSignature(_key: Buffer, _value: Buffer): Buffer {
@@ -39,8 +41,8 @@ export class HMACAlgorithm extends SigningAlgorithm {
   override digestMethod: string;
 
   /**
-   * The digest method to use with the MAC algorithm. This defaults to SHA1, but can be changed to any other method
-   * supported by the `crypto` module.
+   * The digest method to use with the MAC algorithm. This defaults to SHA1, but
+   * can be changed to any other method supported by the `crypto` module.
    */
   defaultDigestMethod = 'sha1';
 
@@ -79,40 +81,47 @@ export interface SignerOptions {
 }
 
 /**
- * A signer securely signs bytes, then unsigns them to verify that the value hasn't been changed.
+ * A signer securely signs bytes, then unsigns them to verify that the value
+ * hasn't been changed.
  *
- * The secret key should be a random string of bytes and should not be saved to code or version control. Different salts
- * should be used to distinguish signing in different contexts.
+ * The secret key should be a random string of bytes and should not be saved to
+ * code or version control. Different salts should be used to distinguish
+ * signing in different contexts.
  *
- * @param secretKey The secret key to sign and verify with. Can be a list of keys, oldest to newest, to support key
- * rotation.
- * @param salt Extra key to combine with `secretKey` to distinguish signatures in different contexts.
+ * @param secretKey The secret key to sign and verify with. Can be a list of
+ * keys, oldest to newest, to support key rotation.
+ * @param salt Extra key to combine with `secretKey` to distinguish signatures
+ * in different contexts.
  * @param sep Separator between the signature and value.
- * @param keyDerivation How to derive the signing key from the secret key and salt. Possible values are `concat`,
- * `django-concat`, or `hmac`. Defaults to `defaultKeyDerivation`, which defaults to `django-concat`.
- * @param digestMethod Hash function to use when generating the HMAC signature. Defaults to `defaultDigestMethod`, which
- * defaults to `sha1`. Note that the security of the hash alone doesn't apply when used intermediately in HMAC.
- * @param algorithm A `SigningAlgorithm` instance to use instead of building a default `HMACAlgorithm` with the
- * `digestMethod`.
+ * @param keyDerivation How to derive the signing key from the secret key and
+ * salt. Possible values are `concat`, `django-concat`, or `hmac`. Defaults to
+ * `defaultKeyDerivation`, which defaults to `django-concat`.
+ * @param digestMethod Hash function to use when generating the HMAC signature.
+ * Defaults to `defaultDigestMethod`, which defaults to `sha1`. Note that the
+ * security of the hash alone doesn't apply when used intermediately in HMAC.
+ * @param algorithm A `SigningAlgorithm` instance to use instead of building a
+ * default `HMACAlgorithm` with the `digestMethod`.
  */
 export class Signer {
   /**
-   * The digest method to use with the MAC algorithm. This defaults to SHA1, but can be changed to any other method
-   * supported by the `crypto` module.
+   * The digest method to use with the MAC algorithm. This defaults to SHA1, but
+   * can be changed to any other method supported by the `crypto` module.
    */
   defaultDigestMethod = 'sha1';
 
   /**
-   * The default scheme to use to derive the signing key from the secret key and salt. The default is `django-concat`.
-   * Possible values are `concat`, `django-concat`, and `hmac`.
+   * The default scheme to use to derive the signing key from the secret key and
+   * salt. The default is `django-concat`. Possible values are `concat`,
+   * `django-concat`, and `hmac`.
    */
   defaultKeyDerivation = KeyDerivation.DjangoConcat;
 
   /**
-   * The list of secret keys to try for verifying signatures, from oldest to newest. The newest (last) key is used for
-   * signing.
+   * The list of secret keys to try for verifying signatures, from oldest to
+   * newest. The newest (last) key is used for signing.
    *
-   * This allows a key rotation system to keep a list of allowed keys and remove expired ones.
+   * This allows a key rotation system to keep a list of allowed keys and remove
+   * expired ones.
    */
   secretKeys: Buffer[];
   sep: Buffer;
@@ -147,11 +156,13 @@ export class Signer {
   }
 
   /**
-   * This method is called to derive the key. The default key derivation choices can be overridden here. Key derivation
-   * is not intended to be used as a security method to make a complex key out of a short password. Instead you should
-   * use large random secret keys.
+   * This method is called to derive the key. The default key derivation choices
+   * can be overridden here. Key derivation is not intended to be used as a
+   * security method to make a complex key out of a short password. Instead you
+   * should use large random secret keys.
    *
-   * @param secretKey A specific secret key to derive from. Defaults to the last item in `secretKeys`.
+   * @param secretKey A specific secret key to derive from. Defaults to the last
+   * item in `secretKeys`.
    */
   deriveKey(secretKey?: StringBuffer): Buffer {
     secretKey = secretKey != null ? wantBuffer(secretKey) : this.secretKeys.at(-1)!;
@@ -232,7 +243,8 @@ export class Signer {
   }
 
   /**
-   * Only validates the given signed value. Returns `true` if the signature exists and is valid.
+   * Only validates the given signed value. Returns `true` if the signature
+   * exists and is valid.
    */
   validate(signedValue: StringBuffer): boolean {
     try {

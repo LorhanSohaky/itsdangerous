@@ -1,5 +1,5 @@
 import {describe, expect, test} from 'vitest';
-import {base64Decode, base64Encode, wantBuffer, bufferToInt, intToBuffer} from '../src';
+import {base64Decode, base64Encode, bufferToInt, intToBuffer, wantBuffer} from '../src';
 
 describe('encoding', () => {
   test.each(['mañana', Buffer.from('tomorrow')])('wantBuffer', (value) => {

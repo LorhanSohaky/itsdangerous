@@ -5,7 +5,7 @@ export function withThrows<T extends Constructable>(fn: () => void, error: T): I
   try {
     fn();
   } catch (error) {
-    thrownError = error;
+    thrownError = error as InstanceType<T>;
   }
   expect(thrownError).toBeInstanceOf(error);
   return thrownError as InstanceType<T>;

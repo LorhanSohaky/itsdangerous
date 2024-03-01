@@ -1,16 +1,18 @@
 import zlib from 'node:zlib';
 import {Mixin} from 'ts-mixer';
-import {base64Decode, base64Encode} from './encoding.js';
-import {BadPayload} from './errors.js';
-import {DefaultSerializer, Serializer} from './serializer.js';
-import {TimedSerializer} from './timed.js';
+import {Class} from 'ts-mixer/dist/types/types';
+import {base64Decode, base64Encode} from './encoding.ts';
+import {BadPayload} from './errors.ts';
+import {DefaultSerializer, Serializer} from './serializer.ts';
+import {TimedSerializer} from './timed.ts';
 
 const zlibDecompress = zlib.inflateSync;
 const zlibCompress = zlib.deflateSync;
 
 /**
- * Mixed in with a regular serializer it will attempt to zlib-compress the string to make it shorter if necessary. It
- * will also base64-encode the string so that it can safely be placed in a URL.
+ * Mixed in with a regular serializer it will attempt to zlib-compress the
+ * string to make it shorter if necessary. It will also base64-encode the string
+ * so that it can safely be placed in a URL.
  */
 export class URLSafeSerializerMixin extends Serializer {
   override parsePayload(payload: Buffer, serializer?: DefaultSerializer): any {
@@ -55,13 +57,23 @@ export class URLSafeSerializerMixin extends Serializer {
 }
 
 /**
- * Works like `Serializer` but dumps and loads into a URL-safe string consisting of upper- and lowercase characters of
- * the alphabet as well as `'_'`, `'-'` and `'.'`.
+ * Works like `Serializer` but dumps and loads into a URL-safe string consisting
+ * of upper- and lowercase characters of the alphabet as well as `'_'`, `'-'`
+ * and `'.'`.
  */
-export class URLSafeSerializer extends Mixin(URLSafeSerializerMixin, Serializer) {}
+export const URLSafeSerializer: Class<
+  any[],
+  URLSafeSerializerMixin & Serializer,
+  typeof URLSafeSerializerMixin & typeof Serializer
+> = Mixin(URLSafeSerializerMixin, Serializer);
 
 /**
- * Works like `TimedSerializer` but dumps and loads into a URL-safe string consisting of upper- and lowercase characters
- * of the alphabet as well as `'_'`, `'-'` and `'.'`.
+ * Works like `TimedSerializer` but dumps and loads into a URL-safe string
+ * consisting of upper- and lowercase characters of the alphabet as well as
+ * `'_'`, `'-'` and `'.'`.
  */
-export class URLSafeTimedSerializer extends Mixin(URLSafeSerializerMixin, TimedSerializer) {}
+export const URLSafeTimedSerializer: Class<
+  any[],
+  URLSafeSerializerMixin & TimedSerializer,
+  typeof URLSafeSerializerMixin & typeof TimedSerializer
+> = Mixin(URLSafeSerializerMixin, TimedSerializer);
