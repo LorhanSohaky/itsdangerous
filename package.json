@@ -1,6 +1,6 @@
 {
   "name": "itsdangerous.js",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Safely pass trusted data to untrusted environments and back.",
   "keywords": [
     "hmac",
@@ -20,23 +20,24 @@
     "dist"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc",
+    "build": "tsup",
     "format": "prettier --write .",
     "prepublishOnly": "npm run -s build",
     "test": "vitest run"
   },
   "dependencies": {
-    "ts-mixer": "^6.0.3"
+    "ts-mixer": "^6.0.4"
   },
   "devDependencies": {
-    "@types/node": "^20.8.5",
-    "prettier": "^3.0.3",
-    "prettier-plugin-organize-imports": "3.2.3",
-    "typescript": "^5.2.2",
-    "vite": "^4.4.11",
-    "vitest": "^0.34.6"
+    "@types/node": "^20.11.24",
+    "prettier": "^3.2.5",
+    "prettier-plugin-organize-imports": "3.2.4",
+    "tsup": "8.0.2",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.4",
+    "vitest": "^1.3.1"
   },
   "engines": {
-    "node": ">=18.18"
+    "node": ">=18"
   }
 }
