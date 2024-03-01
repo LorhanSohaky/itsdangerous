@@ -1,6 +1,6 @@
 {
   "name": "itsdangerous.js",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Safely pass trusted data to untrusted environments and back.",
   "keywords": [
     "hmac",
