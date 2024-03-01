@@ -8,6 +8,9 @@ export class BadData extends Error {
   }
 }
 
+/**
+ * Thrown if a signature does not match.
+ */
 export class BadSignature extends BadData {
   /**
    * The payload that failed the signature test. In some situations you might
@@ -21,6 +24,10 @@ export class BadSignature extends BadData {
   }
 }
 
+/**
+ * Thrown if a time-based signature is invalid. This is a subclass of
+ * `BadSignature`.
+ */
 export class BadTimeSignature extends BadSignature {
   /**
    * If the signature expired this exposes the date of when the signature was
