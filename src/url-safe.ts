@@ -1,6 +1,5 @@
 import zlib from 'node:zlib';
 import {Mixin} from 'ts-mixer';
-import {Class} from 'ts-mixer/dist/types/types';
 import {base64Decode, base64Encode} from './encoding.ts';
 import {BadPayload} from './errors.ts';
 import {DefaultSerializer, Serializer} from './serializer.ts';
@@ -55,6 +54,18 @@ export class URLSafeSerializerMixin extends Serializer {
     return base64d;
   }
 }
+
+/**
+ * A rigorous type alias for a class. This is a workaround since JSR refuses to
+ * publish the package if this type is imported from `ts-mixer`.
+ *
+ * @see
+ * https://github.com/tannerntannern/ts-mixer/blob/6798034f99b3017c4ef54c69ce2864d6e620ab40/src/types.ts#L42C1-L51C62
+ */
+type Class<_CtorArgs extends any[] = any[], InstanceType = {}, StaticType = {}, _IsAbstract = false> = (abstract new (
+  ...args: any[]
+) => InstanceType) &
+  StaticType;
 
 /**
  * Works like `Serializer` but dumps and loads into a URL-safe string consisting
