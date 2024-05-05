@@ -1,5 +1,7 @@
+import {Buffer} from 'node:buffer';
 import {describe, expect, test, vi} from 'vitest';
-import {BadTimeSignature, Signer, SignerOptions, TimedSerializer, TimestampSigner} from '../src';
+import type {SignerOptions} from '../src';
+import {BadTimeSignature, Signer, TimedSerializer, TimestampSigner} from '../src';
 import {withThrows} from './utils';
 
 function signerFactory(options?: Partial<SignerOptions>): TimestampSigner {
@@ -13,9 +15,9 @@ describe('timestampSigner', () => {
     vi.setSystemTime(MOCK_DATE);
     const signer = signerFactory();
     const signed = signer.sign('value');
-    vi.setSystemTime(MOCK_DATE.getTime() + 10000);
+    vi.setSystemTime(MOCK_DATE.getTime() + 10_000);
     expect(signer.unsign(signed, 10)).toEqual(Buffer.from('value'));
-    vi.setSystemTime(MOCK_DATE.getTime() + 20000);
+    vi.setSystemTime(MOCK_DATE.getTime() + 20_000);
     const error = withThrows(() => signer.unsign(signed, 10), BadTimeSignature);
     expect(error.dateSigned).toBeInstanceOf(MOCK_DATE.constructor);
   });
@@ -80,11 +82,13 @@ describe('timedSerializer', () => {
     const serializer = serializerFactory(TimedSerializer);
     const value = {id: 42};
     const signed = serializer.stringify(value);
-    vi.setSystemTime(MOCK_DATE.getTime() + 10000);
+    vi.setSystemTime(MOCK_DATE.getTime() + 10_000);
     expect(serializer.parse(signed, undefined, 10)).toEqual(value);
-    vi.setSystemTime(MOCK_DATE.getTime() + 20000);
+    vi.setSystemTime(MOCK_DATE.getTime() + 20_000);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     const error = withThrows(() => serializer.parse(signed, undefined, 10), BadTimeSignature);
     expect(error.dateSigned).toBeInstanceOf(MOCK_DATE.constructor);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     expect(serializer.parsePayload(error.payload)).toEqual(value);
   });
 

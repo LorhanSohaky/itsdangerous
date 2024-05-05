@@ -1,3 +1,4 @@
+import {Buffer} from 'node:buffer';
 import {describe, expect, test} from 'vitest';
 import {base64Decode, base64Encode, bufferToInt, intToBuffer, wantBuffer} from '../src';
 
@@ -22,7 +23,7 @@ describe('encoding', () => {
   test.each([
     [0, Buffer.from('')],
     [192, Buffer.from([0xc0])],
-    [18446744073709551615n, Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])],
+    [18_446_744_073_709_551_615n, Buffer.from([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])],
   ])('intToBuffer', (value, expectedValue) => {
     const enc = intToBuffer(value);
     expect(enc.equals(expectedValue)).toEqual(true);

@@ -1,12 +1,17 @@
-import {Constructable, expect} from 'vitest';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Constructable<T extends Error> = new (...args: any[]) => T;
 
-export function withThrows<T extends Constructable>(fn: () => void, error: T): InstanceType<T> {
-  let thrownError: InstanceType<T> | undefined;
+export function withThrows<T extends Error>(fn: () => void, ErrorType: Constructable<T>): T {
+  let thrownError: unknown;
   try {
     fn();
   } catch (error) {
-    thrownError = error as InstanceType<T>;
+    thrownError = error;
+    if (thrownError instanceof ErrorType) {
+      return thrownError;
+    } else {
+      throw new TypeError(`Thrown error is not an instance of the expected type: ${ErrorType.name}`);
+    }
   }
-  expect(thrownError).toBeInstanceOf(error);
-  return thrownError as InstanceType<T>;
+  throw new Error('Expected function to throw an error, but it did not.');
 }

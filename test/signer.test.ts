@@ -1,18 +1,12 @@
+import {Buffer} from 'node:buffer';
 import {describe, expect, test} from 'vitest';
-import {
-  BadSignature,
-  HMACAlgorithm,
-  KeyDerivation,
-  NoneAlgorithm,
-  Signer,
-  SignerOptions,
-  SigningAlgorithm,
-} from '../src';
+import type {SignerOptions} from '../src';
+import {BadSignature, HMACAlgorithm, KeyDerivation, NoneAlgorithm, Signer, SigningAlgorithm} from '../src';
 import {rsplit} from '../src/utils';
 import {withThrows} from './utils';
 
 class ReverseAlgorithm extends SigningAlgorithm {
-  override getSignature(key: Buffer, value: Buffer): Buffer {
+  public override getSignature(key: Buffer, value: Buffer): Buffer {
     return Buffer.concat([key, value]).reverse();
   }
 }
@@ -68,7 +62,7 @@ describe('signer', () => {
   );
 
   test('invalidKeyDerivation', () => {
-    // @ts-expect-error ts(2322)
+    // @ts-expect-error this is testing invalid input
     const signer = signerFactory({keyDerivation: 'invalid'});
     expect(() => signer.deriveKey()).toThrow(TypeError);
   });

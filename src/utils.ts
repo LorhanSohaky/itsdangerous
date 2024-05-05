@@ -1,3 +1,4 @@
+import {Buffer} from 'node:buffer';
 import type {StringBuffer} from './types.ts';
 
 export function rsplit(string: StringBuffer, sep: StringBuffer, maxSplit: number): Buffer[] {

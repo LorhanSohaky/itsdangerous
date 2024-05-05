@@ -1,6 +1,7 @@
+import {Buffer} from 'node:buffer';
 import crypto from 'node:crypto';
 import {BASE64_ALPHABET, base64Decode, base64Encode, wantBuffer} from './encoding.ts';
-import {BadSignature} from './errors.ts';
+import {BadSignatureError} from './errors.ts';
 import type {SecretKey, StringBuffer} from './types.ts';
 import {rsplit} from './utils.ts';
 
@@ -9,13 +10,14 @@ import {rsplit} from './utils.ts';
  * functionality.
  */
 export class SigningAlgorithm {
-  digestMethod?: string;
+  public digestMethod?: string;
 
-  getSignature(_key: Buffer, _value: Buffer): Buffer {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public getSignature(_key: Buffer, _value: Buffer): Buffer {
     throw new Error('Not implemented');
   }
 
-  verifySignature(key: Buffer, value: Buffer, sig: Buffer): boolean {
+  public verifySignature(key: Buffer, value: Buffer, sig: Buffer): boolean {
     try {
       return crypto.timingSafeEqual(sig, this.getSignature(key, value));
     } catch {
@@ -29,7 +31,8 @@ export class SigningAlgorithm {
  * signature.
  */
 export class NoneAlgorithm extends SigningAlgorithm {
-  override getSignature(_key: Buffer, _value: Buffer): Buffer {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public override getSignature(_key: Buffer, _value: Buffer): Buffer {
     return Buffer.from('');
   }
 }
@@ -38,20 +41,20 @@ export class NoneAlgorithm extends SigningAlgorithm {
  * Provides signature generation using HMACs.
  */
 export class HMACAlgorithm extends SigningAlgorithm {
-  override digestMethod: string;
+  public override digestMethod: string;
 
   /**
    * The digest method to use with the MAC algorithm. This defaults to SHA1, but
    * can be changed to any other method supported by the `crypto` module.
    */
-  defaultDigestMethod = 'sha1';
+  public defaultDigestMethod = 'sha1';
 
-  constructor(digestMethod?: string) {
+  public constructor(digestMethod?: string) {
     super();
     this.digestMethod = digestMethod ?? this.defaultDigestMethod;
   }
 
-  override getSignature(key: Buffer, value: Buffer): Buffer {
+  public override getSignature(key: Buffer, value: Buffer): Buffer {
     const mac = crypto.createHmac(this.digestMethod, key).update(value);
     return mac.digest();
   }
@@ -107,14 +110,14 @@ export class Signer {
    * The digest method to use with the MAC algorithm. This defaults to SHA1, but
    * can be changed to any other method supported by the `crypto` module.
    */
-  defaultDigestMethod = 'sha1';
+  public defaultDigestMethod = 'sha1';
 
   /**
    * The default scheme to use to derive the signing key from the secret key and
    * salt. The default is `django-concat`. Possible values are `concat`,
    * `django-concat`, and `hmac`.
    */
-  defaultKeyDerivation = KeyDerivation.DjangoConcat;
+  public defaultKeyDerivation = KeyDerivation.DjangoConcat;
 
   /**
    * The list of secret keys to try for verifying signatures, from oldest to
@@ -123,14 +126,14 @@ export class Signer {
    * This allows a key rotation system to keep a list of allowed keys and remove
    * expired ones.
    */
-  secretKeys: Buffer[];
-  sep: Buffer;
-  salt: Buffer;
-  keyDerivation: KeyDerivation;
-  digestMethod: string;
-  algorithm: SigningAlgorithm;
+  public secretKeys: Buffer[];
+  public sep: Buffer;
+  public salt: Buffer;
+  public keyDerivation: KeyDerivation;
+  public digestMethod: string;
+  public algorithm: SigningAlgorithm;
 
-  constructor({
+  public constructor({
     secretKey,
     salt = Buffer.from('itsdangerous.Signer'),
     sep = Buffer.from('.'),
@@ -164,8 +167,9 @@ export class Signer {
    * @param secretKey A specific secret key to derive from. Defaults to the last
    * item in `secretKeys`.
    */
-  deriveKey(secretKey?: StringBuffer): Buffer {
-    secretKey = secretKey != null ? wantBuffer(secretKey) : this.secretKeys.at(-1)!;
+  public deriveKey(secretKey?: StringBuffer): Buffer {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    secretKey = secretKey == null ? this.secretKeys.at(-1)! : wantBuffer(secretKey);
     switch (this.keyDerivation) {
       case KeyDerivation.Concat: {
         return crypto
@@ -187,7 +191,7 @@ export class Signer {
         return secretKey;
       }
       default: {
-        throw new TypeError(`Unknown key derivation method: ${this.keyDerivation}`);
+        throw new TypeError(`Unknown key derivation method: ${String(this.keyDerivation)}`);
       }
     }
   }
@@ -195,21 +199,21 @@ export class Signer {
   /**
    * Returns the signature for the given value.
    */
-  getSignature(value: StringBuffer): Buffer {
+  public getSignature(value: StringBuffer): Buffer {
     return base64Encode(this.algorithm.getSignature(this.deriveKey(), wantBuffer(value)));
   }
 
   /**
    * Signs the given string.
    */
-  sign(value: StringBuffer): Buffer {
+  public sign(value: StringBuffer): Buffer {
     return Buffer.concat([wantBuffer(value), this.sep, this.getSignature(value)]);
   }
 
   /**
    * Verifies the signature for the given value.
    */
-  verifySignature(value: StringBuffer, sig: StringBuffer): boolean {
+  public verifySignature(value: StringBuffer, sig: StringBuffer): boolean {
     try {
       sig = base64Decode(sig);
     } catch {
@@ -229,15 +233,15 @@ export class Signer {
   /**
    * Unsigns the given string.
    */
-  unsign(signedValue: StringBuffer): Buffer {
+  public unsign(signedValue: StringBuffer): Buffer {
     signedValue = wantBuffer(signedValue);
     if (!signedValue.includes(this.sep)) {
-      throw new BadSignature(`No '${this.sep}' found in value`);
+      throw new BadSignatureError(`No '${String(this.sep)}' found in value`);
     }
 
     const [value, sig] = rsplit(signedValue, this.sep, 1) as [Buffer, Buffer];
     if (!this.verifySignature(value, sig)) {
-      throw new BadSignature(`Signature '${sig}' does not match`, value);
+      throw new BadSignatureError(`Signature '${String(sig)}' does not match`, value);
     }
     return value;
   }
@@ -246,12 +250,12 @@ export class Signer {
    * Only validates the given signed value. Returns `true` if the signature
    * exists and is valid.
    */
-  validate(signedValue: StringBuffer): boolean {
+  public validate(signedValue: StringBuffer): boolean {
     try {
       this.unsign(signedValue);
       return true;
     } catch (error) {
-      if (error instanceof BadSignature) {
+      if (error instanceof BadSignatureError) {
         return false;
       }
       throw error;

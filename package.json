@@ -16,8 +16,8 @@
   "type": "module",
   "exports": {
     ".": {
-      "require": "./dist/index.cjs",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     }
   },
   "types": "./dist",
@@ -27,20 +27,23 @@
   "scripts": {
     "build": "tsup",
     "format": "prettier --write .",
+    "lint": "eslint --fix .",
     "prepublishOnly": "npm run -s build",
     "test": "vitest run"
   },
-  "dependencies": {
-    "ts-mixer": "^6.0.4"
-  },
   "devDependencies": {
+    "@eslint/js": "9.2.0",
+    "@types/eslint__js": "8.42.3",
     "@types/node": "20.12.8",
+    "eslint": "9.2.0",
+    "eslint-plugin-unicorn": "52.0.0",
     "prettier": "3.2.5",
     "prettier-plugin-organize-imports": "3.2.4",
     "tsup": "8.0.2",
     "typescript": "5.4.5",
+    "typescript-eslint": "7.8.0",
     "vite": "5.2.11",
-    "vitest": "1.5.3"
+    "vitest": "1.6.0"
   },
   "engines": {
     "node": ">=18"

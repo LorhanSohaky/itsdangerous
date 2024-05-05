@@ -1,4 +1,5 @@
-import {BadData} from './errors.ts';
+import {Buffer} from 'node:buffer';
+import {BadDataError} from './errors.ts';
 import type {StringBuffer} from './types.ts';
 
 /**
@@ -9,7 +10,7 @@ import type {StringBuffer} from './types.ts';
  *  Defaults to 'utf8'.
  * @returns The buffer.
  */
-export function wantBuffer(string: StringBuffer, encoding: BufferEncoding = 'utf8'): Buffer {
+export function wantBuffer(string: StringBuffer, encoding: 'utf8' | 'ascii' = 'utf8'): Buffer {
   return typeof string === 'string' ? Buffer.from(string, encoding) : string;
 }
 
@@ -34,7 +35,7 @@ export function base64Decode(string: StringBuffer): Buffer {
   try {
     return Buffer.from(string.toString(), 'base64url');
   } catch {
-    throw new BadData('Invalid base64-encoded data');
+    throw new BadDataError('Invalid base64-encoded data');
   }
 }
 

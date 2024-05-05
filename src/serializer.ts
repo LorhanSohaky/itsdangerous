@@ -1,10 +1,14 @@
+import {Buffer} from 'node:buffer';
 import {wantBuffer} from './encoding.ts';
-import {BadPayload, BadSignature} from './errors.ts';
-import {Signer, SignerOptions, makeKeysList} from './signer.ts';
+import {BadPayloadError, BadSignatureError} from './errors.ts';
+import type {SignerOptions} from './signer.ts';
+import {Signer, makeKeysList} from './signer.ts';
 import type {SecretKey, StringBuffer} from './types.ts';
 
 export interface DefaultSerializer {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   stringify(value: any): string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   parse(value: any): any;
 }
 
@@ -49,13 +53,13 @@ export class Serializer {
    * internally. The default is `JSON`, but can be changed to any object that
    * provides `stringify` and `parse` methods.
    */
-  defaultSerializer: DefaultSerializer = JSON;
+  public defaultSerializer: DefaultSerializer = JSON;
 
   /**
    * The default `Signer` class to instantiate when signing data. The default is
    * `itsdangerous.signer.Signer`.
    */
-  defaultSigner = Signer;
+  public defaultSigner = Signer;
 
   /**
    * The list of secret keys to try for verifying signatures, from oldest to
@@ -64,14 +68,20 @@ export class Serializer {
    * This allows a key rotation system to keep a list of allowed keys and remove
    * expired ones.
    */
-  secretKeys: Buffer[];
-  salt: Buffer;
-  serializer: DefaultSerializer;
-  isTextSerializer: boolean;
-  signer: typeof Signer;
-  signerOpts: Partial<SignerOptions>;
+  public secretKeys: Buffer[];
+  public salt: Buffer;
+  public serializer: DefaultSerializer;
+  public isTextSerializer: boolean;
+  public signer: typeof Signer;
+  public signerOpts: Partial<SignerOptions>;
 
-  constructor({secretKey, salt = Buffer.from('itsdangerous'), serializer, signer, signerOpts}: SerializerOptions) {
+  public constructor({
+    secretKey,
+    salt = Buffer.from('itsdangerous'),
+    serializer,
+    signer,
+    signerOpts,
+  }: SerializerOptions) {
     this.secretKeys = makeKeysList(secretKey);
     this.salt = wantBuffer(salt);
     this.serializer = serializer ?? this.defaultSerializer;
@@ -86,13 +96,17 @@ export class Serializer {
    * serializer stored on the class. The encoded `payload` should always be a
    * Buffer.
    */
-  parsePayload(payload: Buffer, serializer?: DefaultSerializer): any {
-    serializer = serializer ?? this.serializer;
-    const isText = serializer != null ? isTextSerializer(serializer) : this.isTextSerializer;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public parsePayload(payload: Buffer, serializer?: DefaultSerializer): any {
+    const useSerializer = serializer ?? this.serializer;
+    const isText = isTextSerializer(useSerializer);
     try {
-      return serializer.parse(isText ? payload.toString() : payload);
+      return isText ? useSerializer.parse(payload.toString('utf8')) : useSerializer.parse(payload);
     } catch (error) {
-      throw new BadPayload('Could not load the payload because an error occurred on unserializing the data.', error);
+      throw new BadPayloadError(
+        'Could not load the payload because an exception occurred on unserializing the data.',
+        error,
+      );
     }
   }
 
@@ -100,7 +114,8 @@ export class Serializer {
    * Stringifies the encoded object. The return value is always Buffer. If the
    * internal serializer returns text, the value will be encoded as utf8.
    */
-  stringifyPayload(obj: any): Buffer {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public stringifyPayload(obj: any): Buffer {
     return wantBuffer(this.serializer.stringify(obj));
   }
 
@@ -108,7 +123,7 @@ export class Serializer {
    * Creates a new instance of the signer to be used. The default implementation
    * uses the `Signer` base class.
    */
-  makeSigner(salt?: StringBuffer): Signer {
+  public makeSigner(salt?: StringBuffer): Signer {
     return new this.signer({secretKey: this.secretKeys, salt: salt ?? this.salt, ...this.signerOpts});
   }
 
@@ -117,7 +132,8 @@ export class Serializer {
    * value can be either a byte or unicode string depending on the format of the
    * internal serializer.
    */
-  stringify(obj: any, salt?: StringBuffer): StringBuffer {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public stringify(obj: any, salt?: StringBuffer): StringBuffer {
     const payload = wantBuffer(this.stringifyPayload(obj));
     const rv = this.makeSigner(salt).sign(payload);
     return this.isTextSerializer ? Buffer.from(rv.toString(), 'utf8') : rv;
@@ -127,7 +143,8 @@ export class Serializer {
    * Reverse of `stringify`. Throws `BadSignature` if the signature validation
    * fails.
    */
-  parse(signed: StringBuffer, salt?: StringBuffer): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public parse(signed: StringBuffer, salt?: StringBuffer): any {
     signed = wantBuffer(signed);
     return this.parsePayload(this.makeSigner(salt).unsign(signed), this.serializer);
   }
@@ -142,7 +159,8 @@ export class Serializer {
    * Use it for debugging only and if you know that your serializer module is
    * not exploitable (for example, do not use it with a pickle serializer).
    */
-  parseUnsafe(signed: StringBuffer, salt?: StringBuffer): [boolean, any] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public parseUnsafe(signed: StringBuffer, salt?: StringBuffer): [boolean, any] {
     try {
       return [true, this.parse(signed, salt)];
     } catch (error) {
@@ -154,15 +172,17 @@ export class Serializer {
    * Low-level helper function to implement `parseUnsafe` in serializer
    * subclasses.
    */
-  _handleParseUnsafeError(error: unknown): [boolean, any] {
-    if (error instanceof BadSignature) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected _handleParseUnsafeError(error: unknown): [boolean, any] {
+    if (error instanceof BadSignatureError) {
       if (error.payload == null) {
         return [false, null];
       }
       try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         return [false, this.parsePayload(error.payload, this.serializer)];
       } catch (error) {
-        if (error instanceof BadPayload) {
+        if (error instanceof BadPayloadError) {
           return [false, null];
         }
         throw error;

@@ -1,11 +1,18 @@
 import assert from 'node:assert';
-import {hasMixin} from 'ts-mixer';
+import {Buffer} from 'node:buffer';
 import {base64Decode, base64Encode, bufferToInt, intToBuffer, wantBuffer} from './encoding.ts';
-import {BadSignature, BadTimeSignature, SignatureExpired} from './errors.ts';
+import {BadSignatureError, BadTimeSignatureError, SignatureExpiredError} from './errors.ts';
 import {Serializer} from './serializer.ts';
 import {Signer} from './signer.ts';
 import type {StringBuffer} from './types.ts';
 import {rsplit} from './utils.ts';
+
+/**
+ * Custom type guard to check if an object is an instance of TimestampSigner.
+ */
+function isTimestampSigner(signer: Signer): signer is TimestampSigner {
+  return 'getTimestamp' in signer && 'timestampToDate' in signer && 'unsign' in signer;
+}
 
 /**
  * Works like the regular `Signer` but also records the time of the signing and
@@ -16,14 +23,14 @@ export class TimestampSigner extends Signer {
   /**
    * Returns the current timestamp. The function must return an integer.
    */
-  getTimestamp(): number {
+  public getTimestamp(): number {
     return Math.floor(Date.now() / 1000);
   }
 
   /**
    * Convert the timestamp from `getTimestamp` into a `Date` object.
    */
-  timestampToDate(timestamp: number): Date {
+  public timestampToDate(timestamp: number): Date {
     const date = new Date(timestamp * 1000);
     if (Number.isNaN(date.getTime())) {
       throw new TypeError('Invalid timestamp');
@@ -34,7 +41,7 @@ export class TimestampSigner extends Signer {
   /**
    * Signs the given string and also attaches time information.
    */
-  override sign(value: StringBuffer): Buffer {
+  public override sign(value: StringBuffer): Buffer {
     value = wantBuffer(value);
     const timestamp = base64Encode(intToBuffer(this.getTimestamp()));
     const sep = wantBuffer(this.sep);
@@ -48,17 +55,20 @@ export class TimestampSigner extends Signer {
    * `returnTimestamp` is `true` the timestamp of the signature will be returned
    * as a `Date` object.
    */
-  override unsign(signedValue: StringBuffer, maxAge?: number, returnTimestamp?: false): Buffer;
-  override unsign(signedValue: StringBuffer, maxAge?: number, returnTimestamp?: true): [Buffer, Date];
-  override unsign(signedValue: StringBuffer, maxAge?: number, returnTimestamp = false): Buffer | [Buffer, Date] {
+  public override unsign(signedValue: StringBuffer, maxAge?: number, returnTimestamp?: false): Buffer;
+  // eslint-disable-next-line no-dupe-class-members
+  public override unsign(signedValue: StringBuffer, maxAge?: number, returnTimestamp?: true): [Buffer, Date];
+  // eslint-disable-next-line no-dupe-class-members
+  public override unsign(signedValue: StringBuffer, maxAge?: number, returnTimestamp = false): Buffer | [Buffer, Date] {
     let result: Buffer | undefined;
-    let sigError: BadSignature | null = null;
+    let sigError: BadSignatureError | null = null;
     try {
       result = super.unsign(signedValue);
       sigError = null;
     } catch (error) {
-      if (error instanceof BadSignature) {
+      if (error instanceof BadSignatureError) {
         sigError = error;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         result = error.payload;
       } else {
         throw error;
@@ -70,41 +80,43 @@ export class TimestampSigner extends Signer {
       if (sigError != null) {
         throw sigError;
       }
-      throw new BadTimeSignature('Missing timestamp', result);
+      throw new BadTimeSignatureError('Missing timestamp', result);
     }
     const [value, timestampBuffer] = rsplit(result, sep, 1) as [Buffer, Buffer];
     let timestampInt: number | undefined;
     let timestampDate: Date | undefined;
     try {
       timestampInt = Number(bufferToInt(base64Decode(timestampBuffer)));
-    } catch {}
+    } catch {
+      /* noop */
+    }
     if (sigError != null) {
       if (timestampInt != null) {
         try {
           timestampDate = this.timestampToDate(timestampInt);
         } catch (error) {
           if (error instanceof TypeError) {
-            throw new BadTimeSignature('Malformed timestamp', value);
+            throw new BadTimeSignatureError('Malformed timestamp', value);
           }
           throw error;
         }
       }
-      throw new BadTimeSignature(sigError.message, value, timestampDate);
+      throw new BadTimeSignatureError(sigError.message, value, timestampDate);
     }
     if (Number.isNaN(timestampInt) || timestampInt == null) {
-      throw new BadTimeSignature('Malformed timestamp', value);
+      throw new BadTimeSignatureError('Malformed timestamp', value);
     }
     if (maxAge != null) {
       const age = this.getTimestamp() - timestampInt;
       if (age > maxAge) {
-        throw new SignatureExpired(
+        throw new SignatureExpiredError(
           `Signature age ${age} > ${maxAge} seconds`,
           value,
           this.timestampToDate(timestampInt),
         );
       }
       if (age < 0) {
-        throw new SignatureExpired(`Signature age ${age} < 0 seconds`, value, this.timestampToDate(timestampInt));
+        throw new SignatureExpiredError(`Signature age ${age} < 0 seconds`, value, this.timestampToDate(timestampInt));
       }
     }
     if (returnTimestamp) {
@@ -117,7 +129,7 @@ export class TimestampSigner extends Signer {
    * Only validates the given signed value. Returns `true` if the signature
    * exists and is valid.
    */
-  override validate(signedValue: StringBuffer, maxAge?: number): boolean {
+  public override validate(signedValue: StringBuffer, maxAge?: number): boolean {
     try {
       this.unsign(signedValue, maxAge);
       return true;
@@ -131,7 +143,7 @@ export class TimestampSigner extends Signer {
  * Uses `TimestampSigner` instead of the default `Signer`.
  */
 export class TimedSerializer extends Serializer {
-  override signer = TimestampSigner;
+  public override signer = TimestampSigner;
 
   /**
    * Reverse of `stringify`, throws `BadSignature` if the signature validation
@@ -140,11 +152,13 @@ export class TimedSerializer extends Serializer {
    * `SignatureExpired` is thrown. All arguments are forwarded to the signer's
    * `TimestampSigner.unsign` method.
    */
-  override parse(signed: StringBuffer, salt?: StringBuffer, maxAge?: number, returnTimestamp = false): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public override parse(signed: StringBuffer, salt?: StringBuffer, maxAge?: number, returnTimestamp = false): any {
     signed = wantBuffer(signed);
     const signer = this.makeSigner(salt);
-    assert(hasMixin(signer, TimestampSigner));
+    assert(isTimestampSigner(signer));
     const [base64d, timestamp] = signer.unsign(signed, maxAge, true);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const payload = this.parsePayload(base64d);
     if (returnTimestamp) {
       return [payload, timestamp];
@@ -152,7 +166,8 @@ export class TimedSerializer extends Serializer {
     return payload;
   }
 
-  override parseUnsafe(signed: StringBuffer, salt?: StringBuffer, maxAge?: number): [boolean, any] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public override parseUnsafe(signed: StringBuffer, salt?: StringBuffer, maxAge?: number): [boolean, any] {
     try {
       return [true, this.parse(signed, salt, maxAge)];
     } catch (error) {
