@@ -1,264 +1,278 @@
-import {Buffer} from 'node:buffer';
-import crypto from 'node:crypto';
+import {areUint8ArraysEqual, concatUint8Arrays} from 'uint8array-extras';
 import {BASE64_ALPHABET, base64Decode, base64Encode, wantBuffer} from './encoding.ts';
 import {BadSignatureError} from './errors.ts';
 import type {SecretKey, StringBuffer} from './types.ts';
-import {rsplit} from './utils.ts';
 
 /**
- * Subclasses must implement `getSignature` to provide signature generation
- * functionality.
+ * Generates an HMAC digest.
+ * @param {string} algo - The hashing algorithm to use.
+ * @param {Uint8Array} key - The key for HMAC.
+ * @param {Uint8Array} data - The data to sign.
+ * @returns {Promise<Uint8Array>} The generated HMAC digest.
  */
+async function hmacDigest(algo: string, key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
+	const cryptoKey = await crypto.subtle.importKey('raw', key, {name: 'HMAC', hash: {name: algo}}, false, ['sign']);
+	const signature = await crypto.subtle.sign('HMAC', cryptoKey, data);
+	return new Uint8Array(signature);
+}
+
+/**
+ * Generates a hash digest.
+ * @param {string} algo - The hashing algorithm to use.
+ * @param {Uint8Array} data - The data to hash.
+ * @returns {Promise<Uint8Array>} The generated hash digest.
+ */
+async function hashDigest(algo: string, data: Uint8Array): Promise<Uint8Array> {
+	const hash = await crypto.subtle.digest(algo, data);
+	return new Uint8Array(hash);
+}
+
 export class SigningAlgorithm {
-  public digestMethod?: string;
+	public digestMethod?: string;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public getSignature(_key: Buffer, _value: Buffer): Buffer {
-    throw new Error('Not implemented');
-  }
+	/**
+	 * Gets the signature for the provided key and value.
+	 * @param {Uint8Array} _key - The key for signing.
+	 * @param {Uint8Array} _value - The value to sign.
+	 * @returns {Promise<Uint8Array>} The signature.
+	 * @throws {Error} Not implemented.
+	 */
+	public async getSignature(_key: Uint8Array, _value: Uint8Array): Promise<Uint8Array> {
+		throw new Error('Not implemented');
+	}
 
-  public verifySignature(key: Buffer, value: Buffer, sig: Buffer): boolean {
-    try {
-      return crypto.timingSafeEqual(sig, this.getSignature(key, value));
-    } catch {
-      return false;
-    }
-  }
+	/**
+	 * Verifies the provided signature.
+	 * @param {Uint8Array} key - The key for verification.
+	 * @param {Uint8Array} value - The value to verify.
+	 * @param {Uint8Array} sig - The signature to verify against.
+	 * @returns {Promise<boolean>} Whether the signature is valid.
+	 */
+	public async verifySignature(key: Uint8Array, value: Uint8Array, sig: Uint8Array): Promise<boolean> {
+		try {
+			const expectedSig = await this.getSignature(key, value);
+			return areUint8ArraysEqual(sig, expectedSig);
+		} catch {
+			return false;
+		}
+	}
 }
 
-/**
- * Provides an algorithm that does not perform any signing and returns an empty
- * signature.
- */
 export class NoneAlgorithm extends SigningAlgorithm {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public override getSignature(_key: Buffer, _value: Buffer): Buffer {
-    return Buffer.from('');
-  }
+	/**
+	 * Gets an empty signature.
+	 * @returns {Promise<Uint8Array>} An empty Uint8Array.
+	 */
+	public override async getSignature(_key: Uint8Array, _value: Uint8Array): Promise<Uint8Array> {
+		return new Uint8Array([]);
+	}
+}
+
+export class HMACAlgorithm extends SigningAlgorithm {
+	public override digestMethod: string;
+	public defaultDigestMethod = 'SHA-1';
+
+	/**
+	 * Creates an instance of HMACAlgorithm.
+	 * @param {string} [digestMethod] - The digest method to use.
+	 */
+	public constructor(digestMethod?: string) {
+		super();
+		this.digestMethod = digestMethod ?? this.defaultDigestMethod;
+	}
+
+	/**
+	 * Gets the HMAC signature.
+	 * @param {Uint8Array} key - The key for HMAC.
+	 * @param {Uint8Array} value - The value to sign.
+	 * @returns {Promise<Uint8Array>} The HMAC signature.
+	 */
+	public override async getSignature(key: Uint8Array, value: Uint8Array): Promise<Uint8Array> {
+		return await hmacDigest(this.digestMethod, key, value);
+	}
 }
 
 /**
- * Provides signature generation using HMACs.
+ * Converts the provided secret key into a list of Uint8Array.
+ * @param {SecretKey} secretKey - The secret key to convert.
+ * @returns {Uint8Array[]} The list of Uint8Array.
  */
-export class HMACAlgorithm extends SigningAlgorithm {
-  public override digestMethod: string;
-
-  /**
-   * The digest method to use with the MAC algorithm. This defaults to SHA1, but
-   * can be changed to any other method supported by the `crypto` module.
-   */
-  public defaultDigestMethod = 'sha1';
-
-  public constructor(digestMethod?: string) {
-    super();
-    this.digestMethod = digestMethod ?? this.defaultDigestMethod;
-  }
-
-  public override getSignature(key: Buffer, value: Buffer): Buffer {
-    const mac = crypto.createHmac(this.digestMethod, key).update(value);
-    return mac.digest();
-  }
-}
-
-export function makeKeysList(secretKey: SecretKey): Buffer[] {
-  if (typeof secretKey === 'string' || Buffer.isBuffer(secretKey)) {
-    return [wantBuffer(secretKey)];
-  }
-  return [...secretKey].map((x) => Buffer.from(x));
+export function makeKeysList(secretKey: SecretKey): Uint8Array[] {
+	if (typeof secretKey === 'string' || secretKey instanceof Uint8Array) {
+		return [wantBuffer(secretKey)];
+	}
+	return [...secretKey].map((x) => wantBuffer(x));
 }
 
 export enum KeyDerivation {
-  Concat = 'concat',
-  DjangoConcat = 'django-concat',
-  Hmac = 'hmac',
-  None = 'none',
+	Concat = 'concat',
+	DjangoConcat = 'django-concat',
+	HMAC = 'hmac',
+	None = 'none',
 }
 
-export interface SignerOptions {
-  secretKey: SecretKey;
-  salt?: StringBuffer;
-  sep?: StringBuffer;
-  keyDerivation?: KeyDerivation;
-  digestMethod?: string;
-  algorithm?: SigningAlgorithm;
-}
+export type SignerOptions = {
+	secretKey: SecretKey;
+	salt?: StringBuffer;
+	separator?: StringBuffer;
+	keyDerivation?: KeyDerivation;
+	digestMethod?: string;
+	algorithm?: SigningAlgorithm;
+};
 
-/**
- * A signer securely signs bytes, then unsigns them to verify that the value
- * hasn't been changed.
- *
- * The secret key should be a random string of bytes and should not be saved to
- * code or version control. Different salts should be used to distinguish
- * signing in different contexts.
- *
- * @param secretKey The secret key to sign and verify with. Can be a list of
- * keys, oldest to newest, to support key rotation.
- * @param salt Extra key to combine with `secretKey` to distinguish signatures
- * in different contexts.
- * @param sep Separator between the signature and value.
- * @param keyDerivation How to derive the signing key from the secret key and
- * salt. Possible values are `concat`, `django-concat`, or `hmac`. Defaults to
- * `defaultKeyDerivation`, which defaults to `django-concat`.
- * @param digestMethod Hash function to use when generating the HMAC signature.
- * Defaults to `defaultDigestMethod`, which defaults to `sha1`. Note that the
- * security of the hash alone doesn't apply when used intermediately in HMAC.
- * @param algorithm A `SigningAlgorithm` instance to use instead of building a
- * default `HMACAlgorithm` with the `digestMethod`.
- */
 export class Signer {
-  /**
-   * The digest method to use with the MAC algorithm. This defaults to SHA1, but
-   * can be changed to any other method supported by the `crypto` module.
-   */
-  public defaultDigestMethod = 'sha1';
+	public defaultDigestMethod = 'SHA-1';
+	public defaultKeyDerivation = KeyDerivation.DjangoConcat;
+	public secretKeys: Uint8Array[];
+	public separator: Uint8Array;
+	public salt: Uint8Array;
+	public keyDerivation: KeyDerivation;
+	public digestMethod: string;
+	public algorithm: SigningAlgorithm;
 
-  /**
-   * The default scheme to use to derive the signing key from the secret key and
-   * salt. The default is `django-concat`. Possible values are `concat`,
-   * `django-concat`, and `hmac`.
-   */
-  public defaultKeyDerivation = KeyDerivation.DjangoConcat;
+	/**
+	 * Creates an instance of Signer.
+	 * @param {SignerOptions} options - The options for the signer.
+	 */
+	public constructor({
+		secretKey,
+		salt = wantBuffer('itsdangerous.Signer'),
+		separator = wantBuffer('.'),
+		keyDerivation,
+		digestMethod,
+		algorithm,
+	}: SignerOptions) {
+		this.secretKeys = makeKeysList(secretKey);
+		this.separator = wantBuffer(separator);
 
-  /**
-   * The list of secret keys to try for verifying signatures, from oldest to
-   * newest. The newest (last) key is used for signing.
-   *
-   * This allows a key rotation system to keep a list of allowed keys and remove
-   * expired ones.
-   */
-  public secretKeys: Buffer[];
-  public sep: Buffer;
-  public salt: Buffer;
-  public keyDerivation: KeyDerivation;
-  public digestMethod: string;
-  public algorithm: SigningAlgorithm;
+		if (BASE64_ALPHABET.includes(new TextDecoder().decode(this.separator))) {
+			throw new TypeError(
+				"The given separator cannot be used because it may be contained in the signature itself. ASCII letters, digits, and '-_=' must not be used.",
+			);
+		}
 
-  public constructor({
-    secretKey,
-    salt = Buffer.from('itsdangerous.Signer'),
-    sep = Buffer.from('.'),
-    keyDerivation,
-    digestMethod,
-    algorithm,
-  }: SignerOptions) {
-    this.secretKeys = makeKeysList(secretKey);
-    this.sep = wantBuffer(sep);
+		this.salt = wantBuffer(salt);
+		this.keyDerivation = keyDerivation ?? this.defaultKeyDerivation;
+		this.digestMethod = digestMethod ?? this.defaultDigestMethod;
+		this.algorithm = algorithm ?? new HMACAlgorithm(digestMethod);
+	}
 
-    if (BASE64_ALPHABET.includes(sep)) {
-      throw new TypeError(
-        'The given separator cannot be used because it may be' +
-          ' contained in the signature itself. ASCII letters,' +
-          " digits, and '-_=' must not be used.",
-      );
-    }
+	/**
+	 * Derives a key using the specified key derivation method.
+	 * @param {StringBuffer} [secretKey] - The secret key to derive from.
+	 * @returns {Promise<Uint8Array>} The derived key.
+	 */
+	public async deriveKey(secretKey?: StringBuffer): Promise<Uint8Array> {
+		// biome-ignore lint/style/noNonNullAssertion: <explanation>
+		const derivedSecretKey = secretKey == null ? this.secretKeys.at(-1)! : wantBuffer(secretKey);
 
-    this.salt = wantBuffer(salt);
-    this.keyDerivation = keyDerivation ?? this.defaultKeyDerivation;
-    this.digestMethod = digestMethod ?? this.defaultDigestMethod;
-    this.algorithm = algorithm ?? new HMACAlgorithm(digestMethod);
-  }
+		switch (this.keyDerivation) {
+			case KeyDerivation.Concat:
+				return await hashDigest(this.digestMethod, concatUint8Arrays([this.salt, derivedSecretKey]));
+			case KeyDerivation.DjangoConcat:
+				return await hashDigest(
+					this.digestMethod,
+					concatUint8Arrays([this.salt, wantBuffer('signer'), derivedSecretKey]),
+				);
+			case KeyDerivation.HMAC:
+				return await hmacDigest(this.digestMethod, derivedSecretKey, this.salt);
+			case KeyDerivation.None:
+				return derivedSecretKey;
+			default:
+				throw new TypeError('Invalid key derivation method');
+		}
+	}
 
-  /**
-   * This method is called to derive the key. The default key derivation choices
-   * can be overridden here. Key derivation is not intended to be used as a
-   * security method to make a complex key out of a short password. Instead you
-   * should use large random secret keys.
-   *
-   * @param secretKey A specific secret key to derive from. Defaults to the last
-   * item in `secretKeys`.
-   */
-  public deriveKey(secretKey?: StringBuffer): Buffer {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    secretKey = secretKey == null ? this.secretKeys.at(-1)! : wantBuffer(secretKey);
-    switch (this.keyDerivation) {
-      case KeyDerivation.Concat: {
-        return crypto
-          .createHash(this.digestMethod)
-          .update(Buffer.concat([this.salt, secretKey]))
-          .digest();
-      }
-      case KeyDerivation.DjangoConcat: {
-        return crypto
-          .createHash(this.digestMethod)
-          .update(Buffer.concat([this.salt, Buffer.from('signer'), secretKey]))
-          .digest();
-      }
-      case KeyDerivation.Hmac: {
-        const mac = crypto.createHmac(this.digestMethod, secretKey).update(this.salt);
-        return mac.digest();
-      }
-      case KeyDerivation.None: {
-        return secretKey;
-      }
-      default: {
-        throw new TypeError(`Unknown key derivation method: ${String(this.keyDerivation)}`);
-      }
-    }
-  }
+	/**
+	 * Generates a signature for the given value.
+	 * @param {StringBuffer} value - The value to sign.
+	 * @returns {Promise<Uint8Array>} The generated signature.
+	 */
+	public async getSignature(value: StringBuffer): Promise<Uint8Array> {
+		const key = await this.deriveKey();
+		const signature = await this.algorithm.getSignature(key, wantBuffer(value));
+		return base64Encode(signature);
+	}
 
-  /**
-   * Returns the signature for the given value.
-   */
-  public getSignature(value: StringBuffer): Buffer {
-    return base64Encode(this.algorithm.getSignature(this.deriveKey(), wantBuffer(value)));
-  }
+	/**
+	 * Signs the provided value.
+	 * @param {StringBuffer} value - The value to sign.
+	 * @returns {Promise<Uint8Array>} The signed value.
+	 */
+	public async sign(value: StringBuffer): Promise<Uint8Array> {
+		const bufferValue = wantBuffer(value);
+		const signature = await this.getSignature(value);
+		return concatUint8Arrays([bufferValue, this.separator, signature]);
+	}
 
-  /**
-   * Signs the given string.
-   */
-  public sign(value: StringBuffer): Buffer {
-    return Buffer.concat([wantBuffer(value), this.sep, this.getSignature(value)]);
-  }
+	/**
+	 * Verifies if the provided signature is valid for the given value.
+	 * @param {StringBuffer} value - The value to verify.
+	 * @param {StringBuffer} sig - The signature to verify.
+	 * @returns {Promise<boolean>} Whether the signature is valid.
+	 */
+	public async verifySignature(value: StringBuffer, sig: StringBuffer): Promise<boolean> {
+		let decodedSig: Uint8Array;
+		try {
+			decodedSig = base64Decode(sig);
+		} catch {
+			return false;
+		}
 
-  /**
-   * Verifies the signature for the given value.
-   */
-  public verifySignature(value: StringBuffer, sig: StringBuffer): boolean {
-    try {
-      sig = base64Decode(sig);
-    } catch {
-      return false;
-    }
+		const bufferValue = wantBuffer(value);
 
-    value = wantBuffer(value);
-    for (const secretKey of this.secretKeys.reverse()) {
-      const key = this.deriveKey(secretKey);
-      if (this.algorithm.verifySignature(key, value, sig)) {
-        return true;
-      }
-    }
-    return false;
-  }
+		for (const secretKey of this.secretKeys) {
+			const key = await this.deriveKey(secretKey);
+			if (await this.algorithm.verifySignature(key, bufferValue, decodedSig)) {
+				return true;
+			}
+		}
+		return false;
+	}
 
-  /**
-   * Unsigns the given string.
-   */
-  public unsign(signedValue: StringBuffer): Buffer {
-    signedValue = wantBuffer(signedValue);
-    if (!signedValue.includes(this.sep)) {
-      throw new BadSignatureError(`No '${String(this.sep)}' found in value`);
-    }
+	/**
+	 * Unsigns the signed value and returns the original value if the signature is
+	 * valid.
+	 * @param {StringBuffer} signedValue - The signed value to unsign.
+	 * @returns {Promise<Uint8Array>} The original value.
+	 * @throws {BadSignatureError} If the signature is invalid or the separator is
+	 * not found.
+	 */
+	public async unsign(signedValue: StringBuffer): Promise<Uint8Array> {
+		const signedBuffer = wantBuffer(signedValue);
+		const separatorIndex = signedBuffer.lastIndexOf(this.separator[0]);
 
-    const [value, sig] = rsplit(signedValue, this.sep, 1) as [Buffer, Buffer];
-    if (!this.verifySignature(value, sig)) {
-      throw new BadSignatureError(`Signature '${String(sig)}' does not match`, value);
-    }
-    return value;
-  }
+		if (separatorIndex === -1) {
+			throw new BadSignatureError(
+				`Separator '${new TextDecoder().decode(this.separator)}' not found in value`,
+				signedBuffer,
+			);
+		}
 
-  /**
-   * Only validates the given signed value. Returns `true` if the signature
-   * exists and is valid.
-   */
-  public validate(signedValue: StringBuffer): boolean {
-    try {
-      this.unsign(signedValue);
-      return true;
-    } catch (error) {
-      if (error instanceof BadSignatureError) {
-        return false;
-      }
-      throw error;
-    }
-  }
+		const value = signedBuffer.slice(0, separatorIndex);
+		const sig = signedBuffer.slice(separatorIndex + this.separator.length);
+
+		if (!(await this.verifySignature(value, sig))) {
+			throw new BadSignatureError('Invalid signature for the provided value.', value);
+		}
+
+		return value;
+	}
+
+	/**
+	 * Validates the signed value.
+	 * @param {StringBuffer} signedValue - The signed value to validate.
+	 * @returns {Promise<boolean>} Whether the signed value is valid.
+	 */
+	public async validate(signedValue: StringBuffer): Promise<boolean> {
+		try {
+			await this.unsign(signedValue);
+			return true;
+		} catch (error) {
+			if (error instanceof BadSignatureError) {
+				return false;
+			}
+			throw error;
+		}
+	}
 }

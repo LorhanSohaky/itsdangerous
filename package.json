@@ -1,51 +1,38 @@
 {
-  "name": "itsdangerous.js",
-  "version": "1.1.5",
-  "description": "Safely pass trusted data to untrusted environments and back.",
-  "keywords": [
-    "hmac",
-    "itsdangerous",
-    "pallets",
-    "python",
-    "security",
-    "serialization"
-  ],
-  "repository": "hampuskraft/itsdangerous.js",
-  "license": "MIT",
-  "sideEffects": false,
-  "type": "module",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
-  },
-  "types": "./dist",
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "tsup",
-    "format": "prettier --write .",
-    "lint": "eslint --fix .",
-    "prepublishOnly": "npm run -s build",
-    "test": "vitest run"
-  },
-  "devDependencies": {
-    "@eslint/js": "9.2.0",
-    "@types/eslint__js": "8.42.3",
-    "@types/node": "20.12.8",
-    "eslint": "9.2.0",
-    "eslint-plugin-unicorn": "52.0.0",
-    "prettier": "3.2.5",
-    "prettier-plugin-organize-imports": "3.2.4",
-    "tsup": "8.0.2",
-    "typescript": "5.4.5",
-    "typescript-eslint": "7.8.0",
-    "vite": "5.2.11",
-    "vitest": "1.6.0"
-  },
-  "engines": {
-    "node": ">=18"
-  }
+	"name": "itsdangerous.js",
+	"version": "2.0.0",
+	"description": "Safely pass trusted data to untrusted environments and back.",
+	"keywords": ["hmac", "itsdangerous", "pallets", "python", "security", "serialization"],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/hampuskraft/itsdangerous.js.git"
+	},
+	"license": "MIT",
+	"sideEffects": false,
+	"type": "module",
+	"exports": "./dist/index.js",
+	"types": "./dist",
+	"files": ["dist"],
+	"scripts": {
+		"build": "tsup",
+		"format": "npx @biomejs/biome format --write .",
+		"lint": "npx @biomejs/biome lint --write --unsafe .",
+		"prepublishOnly": "npm run -s build",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"pako": "2.1.0",
+		"uint8array-extras": "1.1.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "1.8.0",
+		"@types/pako": "2.0.3",
+		"tsup": "8.1.0",
+		"typescript": "5.4.5",
+		"vite": "5.2.13",
+		"vitest": "1.6.0"
+	},
+	"engines": {
+		"node": ">=20"
+	}
 }

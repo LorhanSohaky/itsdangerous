@@ -1,104 +1,82 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
+import type {$TsFixMe} from './types.ts';
 
 /**
- * Thrown if bad data of any sort was encountered. This is the base for all
- * errors that ItsDangerous defines.
+ * Base class for errors related to encountering bad data. This class is the
+ * foundation for all other errors defined in this module.
  */
 export class BadDataError extends Error {
-  public constructor(message: string) {
-    super(message);
-    this.name = 'BadDataError';
-  }
+	constructor(message: string) {
+		super(message);
+		this.name = 'BadDataError';
+	}
 }
 
 /**
- * Thrown if a signature does not match.
+ * Error thrown when a data signature does not match the expected value. This
+ * error allows access to the original payload which may still be of interest,
+ * even if it has been tampered with.
  */
 export class BadSignatureError extends BadDataError {
-  /**
-   * The payload that failed the signature test. In some situations you might
-   * still want to inspect this, even if you know it was tampered with.
-   */
-  public payload: any;
+	public payload: Uint8Array;
 
-  public constructor(message: string, payload?: any) {
-    super(message);
-    this.payload = payload;
-    this.name = 'BadSignatureError';
-  }
+	constructor(message: string, payload: Uint8Array) {
+		super(message);
+		this.payload = payload;
+		this.name = 'BadSignatureError';
+	}
 }
 
 /**
- * Thrown if a time-based signature is invalid. This is a subclass of
- * `BadSignature`.
+ * Error thrown when a time-based signature is invalid. Extends from
+ * BadSignatureError and provides additional context like the signing date.
  */
 export class BadTimeSignatureError extends BadSignatureError {
-  /**
-   * If the signature expired this exposes the date of when the signature was
-   * created. This can be helpful in order to tell the user how long a link has
-   * been gone stale.
-   */
-  public dateSigned: Date;
+	public dateSigned?: Date;
 
-  public constructor(message: string, payload?: any, dateSigned?: any) {
-    super(message, payload);
-    this.dateSigned = dateSigned;
-    this.name = 'BadTimeSignatureError';
-  }
+	constructor(message: string, payload: Uint8Array, dateSigned?: Date) {
+		super(message, payload);
+		this.dateSigned = dateSigned;
+	}
 }
 
 /**
- * Thrown if a signature timestamp is older than `maxAge`. This is a subclass of
- * `BadTimeSignature`.
+ * Error thrown when a signature has expired. This is specific for cases where a
+ * signature is valid only for a certain duration (maxAge).
  */
 export class SignatureExpiredError extends BadTimeSignatureError {
-  public constructor(message: string, payload?: any, dateSigned?: any) {
-    super(message, payload, dateSigned);
-    this.name = 'SignatureExpiredError';
-  }
+	constructor(message: string, payload: Uint8Array, dateSigned?: Date) {
+		super(message, payload, dateSigned);
+		this.name = 'SignatureExpiredError';
+	}
 }
 
 /**
- * Thrown if a signed header is invalid in some form. This only happens for
- * serializers that have a header that goes with the signature.
+ * Error thrown when a signed header is found to be invalid. This can occur if
+ * serializers use a header alongside the signature that fails validation.
  */
 export class BadHeaderError extends BadSignatureError {
-  /**
-   * If the header is actually available but just malformed it might be stored
-   * here.
-   */
-  public header: any;
+	public header: Uint8Array;
+	public originalError: $TsFixMe;
 
-  /**
-   * If available, the error that indicates why the payload was not valid. This
-   * might be `undefined`.
-   */
-  public originalError: any;
-
-  public constructor(message: string, payload?: any, header?: any, originalError?: any) {
-    super(message, payload);
-    this.header = header;
-    this.originalError = originalError;
-    this.name = 'BadHeaderError';
-  }
+	constructor(message: string, payload: Uint8Array, header: Uint8Array, originalError: $TsFixMe) {
+		super(message, payload);
+		this.header = header;
+		this.originalError = originalError;
+		this.name = 'BadHeaderError';
+	}
 }
 
 /**
- * Thrown if a payload is invalid. This could happen if the payload is loaded
- * despite an invalid signature, or if there is a mismatch between the
- * serializer and deserializer. The original error that occurred during loading
- * is stored on as `originalError`.
+ * Error thrown when a payload is invalid. This might occur if the payload is
+ * processed despite having an invalid signature, or if there is a mismatch in
+ * serialization and deserialization processes.
  */
 export class BadPayloadError extends BadDataError {
-  /**
-   * If available, the error that indicates why the payload was not valid. This
-   * might be `undefined`.
-   */
-  public originalError: any;
+	public originalError: $TsFixMe;
 
-  public constructor(message: string, originalError?: any) {
-    super(message);
-    this.originalError = originalError;
-    this.name = 'BadPayloadError';
-  }
+	constructor(message: string, originalError: $TsFixMe) {
+		super(message);
+		this.originalError = originalError;
+		this.name = 'BadPayloadError';
+	}
 }

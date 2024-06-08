@@ -1,92 +1,130 @@
-import {Buffer} from 'node:buffer';
-import zlib from 'node:zlib';
-import {base64Decode, base64Encode} from './encoding.ts';
+import pako from 'pako';
+import {concatUint8Arrays} from 'uint8array-extras';
+import {base64Decode, base64Encode, wantBuffer} from './encoding.ts';
 import {BadPayloadError} from './errors.ts';
-import type {DefaultSerializer} from './serializer.ts';
-import {Serializer} from './serializer.ts';
+import {type DefaultSerializer, Serializer} from './serializer.ts';
 import {TimedSerializer} from './timed.ts';
+import type {$TsFixMe} from './types.ts';
 
-const zlibDecompress = zlib.inflateSync;
-const zlibCompress = zlib.deflateSync;
-
-function processPayloadForParsing(payload: Buffer): Buffer {
-  let decompress = false;
-  if (payload.toString().startsWith('.')) {
-    payload = Buffer.from(payload.toString().slice(1));
-    decompress = true;
-  }
-
-  let json: Buffer | undefined;
-  try {
-    json = base64Decode(payload);
-  } catch (error) {
-    throw new BadPayloadError('Could not base64-decode the payload because of an error', error);
-  }
-
-  if (decompress) {
-    try {
-      json = zlibDecompress(json);
-    } catch (error) {
-      throw new BadPayloadError('Could not zlib-decompress the payload before decoding', error);
-    }
-  }
-
-  return json;
-}
-
-function processPayloadForStringification(json: Buffer): Buffer {
-  let isCompressed = false;
-  const compressed = zlibCompress(json);
-  if (compressed.length < json.length - 1) {
-    json = compressed;
-    isCompressed = true;
-  }
-  let base64d = base64Encode(json);
-  if (isCompressed) {
-    base64d = Buffer.from('.' + base64d.toString());
-  }
-  return base64d;
+/**
+ * Decompresses a given Uint8Array using pako.
+ * @param {Uint8Array} buffer - The compressed data.
+ * @returns {Uint8Array} The decompressed data.
+ */
+function pakoDecompress(buffer: Uint8Array): Uint8Array {
+	return pako.inflate(buffer);
 }
 
 /**
- * Base class for URL-safe serializers.
+ * Compresses a given Uint8Array using pako.
+ * @param {Uint8Array} buffer - The data to compress.
+ * @returns {Uint8Array} The compressed data.
  */
+function pakoCompress(buffer: Uint8Array): Uint8Array {
+	return pako.deflate(buffer);
+}
+
+/**
+ * Decodes a payload from a Uint8Array. If the payload is compressed, it
+ * decompresses it.
+ * @param {Uint8Array} payload - The payload to decode.
+ * @returns {Uint8Array} The decoded (and possibly decompressed) payload.
+ * @throws {BadPayloadError} If decoding or decompression fails.
+ */
+function decodePayload(payload: Uint8Array): Uint8Array {
+	let decompress = false;
+	let slicedPayload = payload;
+
+	if (slicedPayload[0] === 46) {
+		slicedPayload = slicedPayload.slice(1);
+		decompress = true;
+	}
+
+	let decodedPayload: Uint8Array;
+	try {
+		decodedPayload = base64Decode(slicedPayload);
+	} catch (error) {
+		throw new BadPayloadError('Could not base64-decode the payload due to an error', error);
+	}
+
+	if (decompress) {
+		try {
+			decodedPayload = pakoDecompress(decodedPayload);
+		} catch (error) {
+			throw new BadPayloadError('Could not decompress the payload after decoding', error);
+		}
+	}
+
+	return decodedPayload;
+}
+
+/**
+ * Encodes a JSON payload into a Uint8Array. If the payload can be compressed,
+ * it compresses it before encoding.
+ * @param {Uint8Array} json - The JSON payload to encode.
+ * @returns {Uint8Array} The encoded (and possibly compressed) payload.
+ */
+function encodePayload(json: Uint8Array): Uint8Array {
+	const compressed = pakoCompress(json);
+	const isCompressed = compressed.length < json.length - 1;
+	const processedJson = isCompressed ? compressed : json;
+	let base64Payload = base64Encode(processedJson);
+
+	if (isCompressed) {
+		base64Payload = concatUint8Arrays([wantBuffer('.'), base64Payload]);
+	}
+
+	return wantBuffer(base64Payload);
+}
+
 class URLSafeSerializerBase extends Serializer {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public parsePayload(payload: Buffer, serializer?: DefaultSerializer): any {
-    const json = processPayloadForParsing(payload);
-    return super.parsePayload(json, serializer);
-  }
+	/**
+	 * Parses a payload into an object. Decodes and decompresses the payload if
+	 * necessary.
+	 * @param {Uint8Array} payload - The payload to parse.
+	 * @param {DefaultSerializer} [serializer] - An optional serializer to use.
+	 * @returns {$TsFixMe} The parsed object.
+	 */
+	public override parsePayload(payload: Uint8Array, serializer?: DefaultSerializer): $TsFixMe {
+		const json = decodePayload(payload);
+		return super.parsePayload(json, serializer);
+	}
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public stringifyPayload(obj: any): Buffer {
-    const json = super.stringifyPayload(obj);
-    return processPayloadForStringification(json);
-  }
+	/**
+	 * Stringifies an object into a payload. Compresses and encodes the payload if
+	 * necessary.
+	 * @param {$TsFixMe} object - The object to stringify.
+	 * @returns {Uint8Array} The encoded payload.
+	 */
+	public override stringifyPayload(object: $TsFixMe): Uint8Array {
+		const json = super.stringifyPayload(object);
+		return encodePayload(json);
+	}
 }
 
-/**
- * Works like `Serializer` but dumps and loads into a URL-safe string consisting
- * of upper- and lowercase characters of the alphabet as well as `'_'`, `'-'`
- * and `'.'`.
- */
 export class URLSafeSerializer extends URLSafeSerializerBase {}
 
-/**
- * Works like `TimedSerializer` but dumps and loads into a URL-safe string
- * consisting of upper- and lowercase characters of the alphabet as well as
- * `'_'`, `'-'` and `'.'`.
- */
 export class URLSafeTimedSerializer extends TimedSerializer {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public parsePayload(payload: Buffer, serializer?: DefaultSerializer): any {
-    const json = processPayloadForParsing(payload);
-    return super.parsePayload(json, serializer);
-  }
+	/**
+	 * Parses a payload into an object. Decodes and decompresses the payload if
+	 * necessary.
+	 * @param {Uint8Array} payload - The payload to parse.
+	 * @param {DefaultSerializer} [serializer] - An optional serializer to use.
+	 * @returns {$TsFixMe} The parsed object.
+	 */
+	public override parsePayload(payload: Uint8Array, serializer?: DefaultSerializer): $TsFixMe {
+		const json = decodePayload(payload);
+		return super.parsePayload(json, serializer);
+	}
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public stringifyPayload(obj: any): Buffer {
-    const json = super.stringifyPayload(obj);
-    return processPayloadForStringification(json);
-  }
+	/**
+	 * Stringifies an object into a payload. Compresses and encodes the payload if
+	 * necessary.
+	 * @param {$TsFixMe} object - The object to stringify.
+	 * @returns {Uint8Array} The encoded payload.
+	 */
+	public override stringifyPayload(object: $TsFixMe): Uint8Array {
+		const json = super.stringifyPayload(object);
+		return encodePayload(json);
+	}
 }

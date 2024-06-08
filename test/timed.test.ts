@@ -1,102 +1,106 @@
-import {Buffer} from 'node:buffer';
 import {describe, expect, test, vi} from 'vitest';
-import type {SignerOptions} from '../src';
-import {BadTimeSignature, Signer, TimedSerializer, TimestampSigner} from '../src';
-import {withThrows} from './utils';
+import {
+	BadTimeSignatureError,
+	Signer,
+	type SignerOptions,
+	TimedSerializer,
+	TimestampSigner,
+	wantBuffer,
+} from '../src/index.ts';
+import {withThrows} from './utils.ts';
 
 function signerFactory(options?: Partial<SignerOptions>): TimestampSigner {
-  return new TimestampSigner({secretKey: 'secret-key', ...options});
+	return new TimestampSigner({secretKey: 'secret-key', ...options});
 }
 
-const MOCK_DATE = new Date('2011-06-24T00:09:05.000Z');
+const mockDate = new Date('2011-06-24T00:09:05.000Z');
 
 describe('timestampSigner', () => {
-  test('maxAge', () => {
-    vi.setSystemTime(MOCK_DATE);
-    const signer = signerFactory();
-    const signed = signer.sign('value');
-    vi.setSystemTime(MOCK_DATE.getTime() + 10_000);
-    expect(signer.unsign(signed, 10)).toEqual(Buffer.from('value'));
-    vi.setSystemTime(MOCK_DATE.getTime() + 20_000);
-    const error = withThrows(() => signer.unsign(signed, 10), BadTimeSignature);
-    expect(error.dateSigned).toBeInstanceOf(MOCK_DATE.constructor);
-  });
+	test('maxAge', async () => {
+		vi.setSystemTime(mockDate);
+		const signer = signerFactory();
+		const signed = await signer.sign('value');
+		vi.setSystemTime(mockDate.getTime() + 10_000);
+		expect(await signer.unsign(signed, 10)).toEqual(wantBuffer('value'));
+		vi.setSystemTime(mockDate.getTime() + 20_000);
+		const error = await withThrows(async () => signer.unsign(signed, 10), BadTimeSignatureError);
+		expect(error.dateSigned).toBeInstanceOf(mockDate.constructor);
+	});
 
-  test('returnTimestamp', () => {
-    vi.setSystemTime(MOCK_DATE);
-    const signer = signerFactory();
-    const signed = signer.sign('value');
-    expect(signer.unsign(signed, undefined, true)).toEqual([Buffer.from('value'), MOCK_DATE]);
-  });
+	test('returnTimestamp', async () => {
+		vi.setSystemTime(mockDate);
+		const signer = signerFactory();
+		const signed = await signer.sign('value');
+		expect(await signer.unsign(signed, undefined, true)).toEqual([wantBuffer('value'), mockDate]);
+	});
 
-  test('timestampMissing', () => {
-    const signer = signerFactory();
-    const other = new Signer({secretKey: 'secret-key'});
-    const signed = other.sign('value');
-    const error = withThrows(() => signer.unsign(signed), BadTimeSignature);
-    expect(error.message).toMatch(/Missing/);
-    expect(error.dateSigned).toBeUndefined();
-  });
+	test('timestampMissing', async () => {
+		const signer = signerFactory();
+		const other = new Signer({secretKey: 'secret-key'});
+		const signed = await other.sign('value');
+		const error = await withThrows(async () => signer.unsign(signed), BadTimeSignatureError);
+		expect(error.message).toMatch(/Missing/);
+		expect(error.dateSigned).toBeUndefined();
+	});
 
-  test('malformedTimestamp', () => {
-    const signer = signerFactory();
-    const other = new Signer({secretKey: 'secret-key'});
-    const signed = other.sign('value.____________');
-    const error = withThrows(() => signer.unsign(signed), BadTimeSignature);
-    expect(error.message).toMatch(/Malformed/);
-    expect(error.dateSigned).toBeUndefined();
-  });
+	test('malformedTimestamp', async () => {
+		const signer = signerFactory();
+		const other = new Signer({secretKey: 'secret-key'});
+		const signed = await other.sign('value.____________');
+		const error = await withThrows(async () => signer.unsign(signed), BadTimeSignatureError);
+		expect(error.message).toMatch(/Malformed/);
+		expect(error.dateSigned).toBeUndefined();
+	});
 
-  test('malformedFutureTimestamp', () => {
-    const signer = signerFactory();
-    const signed = Buffer.from('value.TgPVoaGhoQ.AGBfQ6G6cr07byTRt0zAdPljHOY');
-    const error = withThrows(() => signer.unsign(signed), BadTimeSignature);
-    expect(error.message).toMatch(/Malformed/);
-    expect(error.dateSigned).toBeUndefined();
-  });
+	test('malformedFutureTimestamp', async () => {
+		const signer = signerFactory();
+		const signed = wantBuffer('value.TgPVoaGhoQ.AGBfQ6G6cr07byTRt0zAdPljHOY');
+		const error = await withThrows(async () => signer.unsign(signed), BadTimeSignatureError);
+		expect(error.message).toMatch(/Malformed/);
+		expect(error.dateSigned).toBeUndefined();
+	});
 
-  test('futureAge', () => {
-    const signer = signerFactory();
-    const signed = signer.sign('value');
-    vi.setSystemTime(new Date('1971-05-31'));
-    const error = withThrows(() => signer.unsign(signed, 10), BadTimeSignature);
-    expect(error.dateSigned).toBeInstanceOf(MOCK_DATE.constructor);
-  });
+	test('futureAge', async () => {
+		const signer = signerFactory();
+		const signed = await signer.sign('value');
+		vi.setSystemTime(new Date('1971-05-31'));
+		const error = await withThrows(async () => signer.unsign(signed, 10), BadTimeSignatureError);
+		expect(error.dateSigned).toBeInstanceOf(mockDate.constructor);
+	});
 
-  test('sigErrorDateSigned', () => {
-    vi.setSystemTime(MOCK_DATE);
-    const signer = signerFactory();
-    const signed = signer.sign('my string').toString().replace('my', 'other');
-    const error = withThrows(() => signer.unsign(signed), BadTimeSignature);
-    expect(error.dateSigned).toBeInstanceOf(MOCK_DATE.constructor);
-  });
+	test('sigErrorDateSigned', async () => {
+		vi.setSystemTime(mockDate);
+		const signer = signerFactory();
+		const signed = await signer.sign('my string');
+		const signedTampered = wantBuffer(new TextDecoder().decode(signed).replace('my', 'other'));
+		await expect(signer.unsign(signedTampered)).rejects.toThrow(BadTimeSignatureError);
+	});
 });
 
 function serializerFactory(serializerType: typeof TimedSerializer): TimedSerializer {
-  return new serializerType({secretKey: 'secret-key'});
+	return new serializerType({secretKey: 'secret-key'});
 }
 
 describe('timedSerializer', () => {
-  test('maxAge', () => {
-    vi.setSystemTime(MOCK_DATE);
-    const serializer = serializerFactory(TimedSerializer);
-    const value = {id: 42};
-    const signed = serializer.stringify(value);
-    vi.setSystemTime(MOCK_DATE.getTime() + 10_000);
-    expect(serializer.parse(signed, undefined, 10)).toEqual(value);
-    vi.setSystemTime(MOCK_DATE.getTime() + 20_000);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    const error = withThrows(() => serializer.parse(signed, undefined, 10), BadTimeSignature);
-    expect(error.dateSigned).toBeInstanceOf(MOCK_DATE.constructor);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    expect(serializer.parsePayload(error.payload)).toEqual(value);
-  });
+	test('maxAge', async () => {
+		vi.setSystemTime(mockDate);
+		const serializer = serializerFactory(TimedSerializer);
+		const value = {id: 42};
+		const signed = await serializer.stringify(value);
+		vi.setSystemTime(mockDate.getTime() + 10_000);
+		expect(await serializer.parse(signed, undefined, 10)).toEqual(value);
+		vi.setSystemTime(mockDate.getTime() + 20_000);
+		const error = await withThrows(async () => serializer.parse(signed, undefined, 10), BadTimeSignatureError);
+		expect(error.dateSigned).toBeInstanceOf(mockDate.constructor);
+		// biome-ignore lint/style/noNonNullAssertion: <explanation>
+		expect(serializer.parsePayload(error.payload!)).toEqual(value);
+	});
 
-  test('returnPayload', () => {
-    vi.setSystemTime(MOCK_DATE);
-    const serializer = serializerFactory(TimedSerializer);
-    const value = {id: 42};
-    const signed = serializer.stringify(value);
-    expect(serializer.parse(signed, undefined, undefined, true)).toEqual([value, MOCK_DATE]);
-  });
+	test('returnPayload', async () => {
+		vi.setSystemTime(mockDate);
+		const serializer = serializerFactory(TimedSerializer);
+		const value = {id: 42};
+		const signed = await serializer.stringify(value);
+		expect(await serializer.parse(signed, undefined, undefined, true)).toEqual([value, mockDate]);
+	});
 });

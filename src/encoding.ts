@@ -1,79 +1,76 @@
-import {Buffer} from 'node:buffer';
+import {base64ToUint8Array, stringToUint8Array, uint8ArrayToBase64} from 'uint8array-extras';
 import {BadDataError} from './errors.ts';
 import type {StringBuffer} from './types.ts';
 
+export const BASE64_ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_=';
+
 /**
- * Convert a string or buffer to a buffer.
- *
- * @param string The string or buffer to convert.
- * @param encoding The encoding to use when converting a string to a buffer.
- *  Defaults to 'utf8'.
- * @returns The buffer.
+ * Converts a string or Uint8Array to a Uint8Array.
+ * @param {StringBuffer} input - The input string or Uint8Array.
+ * @returns {Uint8Array} The resulting Uint8Array.
  */
-export function wantBuffer(string: StringBuffer, encoding: 'utf8' | 'ascii' = 'utf8'): Buffer {
-  return typeof string === 'string' ? Buffer.from(string, encoding) : string;
+export function wantBuffer(input: StringBuffer): Uint8Array {
+	return typeof input === 'string' ? stringToUint8Array(input) : input;
 }
 
 /**
- * Convert a string or buffer to a base64-encoded buffer.
- *
- * @param string The string or buffer to convert.
- * @returns The base64-encoded buffer.
+ * Encodes a string or Uint8Array to a base64 encoded Uint8Array.
+ * @param {StringBuffer} input - The input string or Uint8Array.
+ * @returns {Uint8Array} The base64 encoded Uint8Array.
  */
-export function base64Encode(string: StringBuffer): Buffer {
-  return Buffer.from(wantBuffer(string).toString('base64url'));
+export function base64Encode(input: StringBuffer): Uint8Array {
+	const buffer = wantBuffer(input);
+	return stringToUint8Array(uint8ArrayToBase64(buffer, {urlSafe: true}));
 }
 
 /**
- * Convert a base64-encoded string or buffer to a buffer.
- *
- * @param string The base64-encoded string or buffer to convert.
- * @returns The buffer.
+ * Decodes a base64 encoded string or Uint8Array to a Uint8Array.
+ * @param {StringBuffer} input - The base64 encoded string or Uint8Array.
+ * @returns {Uint8Array} The decoded Uint8Array.
+ * @throws {BadDataError} If the input data is not valid base64.
  */
-export function base64Decode(string: StringBuffer): Buffer {
-  string = wantBuffer(string, 'ascii');
-  try {
-    return Buffer.from(string.toString(), 'base64url');
-  } catch {
-    throw new BadDataError('Invalid base64-encoded data');
-  }
+export function base64Decode(input: StringBuffer): Uint8Array {
+	try {
+		const buffer = wantBuffer(input);
+		const inputStr = new TextDecoder().decode(buffer);
+		return base64ToUint8Array(inputStr);
+	} catch {
+		throw new BadDataError('Invalid base64-encoded data');
+	}
 }
 
 /**
- * The base64 alphabet used for encoding and decoding.
+ * Converts an integer or bigint to a Uint8Array.
+ * @param {number | bigint} number - The number or bigint to convert.
+ * @returns {Uint8Array} The resulting Uint8Array.
  */
-export const BASE64_ALPHABET = Buffer.from('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_=');
+export function intToBuffer(number: number | bigint): Uint8Array {
+	const buffer = new ArrayBuffer(8);
+	const view = new DataView(buffer);
+	view.setBigUint64(0, BigInt(number), false);
 
-/**
- * Convert a buffer to a base64url-encoded string.
- *
- * @param buf The buffer to convert.
- * @returns The base64url-encoded string.
- */
-export function intToBuffer(num: number | bigint): Buffer {
-  const buf = Buffer.alloc(8);
-  buf.writeBigUInt64BE(BigInt(num));
-  let firstNonZeroIdx = 0;
-  for (; firstNonZeroIdx < buf.length; firstNonZeroIdx++) {
-    if (buf[firstNonZeroIdx] !== 0) {
-      break;
-    }
-  }
-  return buf.subarray(firstNonZeroIdx);
+	let firstNonZeroIndex = 0;
+	while (firstNonZeroIndex < 8 && view.getUint8(firstNonZeroIndex) === 0) {
+		firstNonZeroIndex++;
+	}
+
+	return new Uint8Array(buffer.slice(firstNonZeroIndex));
 }
 
 /**
- * Convert a buffer to a number.
- *
- * @param buf The buffer to convert.
- * @returns The number.
+ * Converts a Uint8Array to an integer or bigint.
+ * @param {Uint8Array} buffer - The Uint8Array to convert.
+ * @returns {number | bigint} The resulting integer or bigint.
  */
-export function bufferToInt(buf: Buffer): number | bigint {
-  const fullBuf = Buffer.alloc(8);
-  buf.copy(fullBuf, 8 - buf.length);
-  const num = fullBuf.readBigUInt64BE();
-  if (num <= Number.MAX_SAFE_INTEGER) {
-    return Number(num);
-  }
-  return num;
+export function bufferToInt(buffer: Uint8Array): number | bigint {
+	const fullBuffer = new ArrayBuffer(8);
+	const view = new DataView(fullBuffer);
+	const start = 8 - buffer.byteLength;
+
+	for (const [index, byte] of buffer.entries()) {
+		view.setUint8(start + index, byte);
+	}
+
+	const result = view.getBigUint64(0, false);
+	return result <= Number.MAX_SAFE_INTEGER ? Number(result) : result;
 }
