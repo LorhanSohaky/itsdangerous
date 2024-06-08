@@ -1,6 +1,6 @@
 {
 	"name": "itsdangerous.js",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"description": "Safely pass trusted data to untrusted environments and back.",
 	"keywords": ["hmac", "itsdangerous", "pallets", "python", "security", "serialization"],
 	"repository": {

@@ -102,12 +102,12 @@ describe.each([Serializer, URLSafeSerializer, URLSafeTimedSerializer])('serializ
 			'[42].MKCz_0nXQqv7wKpfHZcRtJRmpT2T5uvs9YQsJEhJimqxc9bCLxG31QzS5uC8OVBI1i6jyOLAFNoKaF5ckO9L5Q',
 		);
 	});
+});
 
-	test('readme', async () => {
-		const serializer = new URLSafeSerializer({secretKey: 'secret key', salt: 'auth'});
-		const token = await serializer.stringify({id: 5, name: 'itsdangerous'});
-		expect(token).toEqual('eyJpZCI6NSwibmFtZSI6Iml0c2Rhbmdlcm91cyJ9.6YP6T0BaO67XP--9UzTrmurXSmg');
-		const data = await serializer.parse(token);
-		expect(data.name).toEqual('itsdangerous');
-	});
+test('readme', async () => {
+	const serializer = new URLSafeSerializer({secretKey: 'secret key', salt: 'auth'});
+	const token = await serializer.stringify({id: 5, name: 'itsdangerous'});
+	expect(token).toEqual('eyJpZCI6NSwibmFtZSI6Iml0c2Rhbmdlcm91cyJ9.6YP6T0BaO67XP--9UzTrmurXSmg');
+	const data = await serializer.parse(token);
+	expect(data.name).toEqual('itsdangerous');
 });

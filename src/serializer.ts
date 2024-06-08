@@ -108,7 +108,9 @@ export class Serializer {
 	 * @returns {Uint8Array} - The stringified object as a Uint8Array.
 	 */
 	public stringifyPayload(object: $TsFixMe): Uint8Array {
-		return new TextEncoder().encode(this.serializer.stringify(object));
+		const json = this.serializer.stringify(object);
+		const isText = isTextSerializer(this.serializer);
+		return isText ? new TextEncoder().encode(json) : wantBuffer(json);
 	}
 
 	/**
