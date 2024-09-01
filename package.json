@@ -1,6 +1,6 @@
 {
 	"name": "@lorhansohaky/itsdangerous",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"description": "Safely pass trusted data to untrusted environments and back.",
 	"keywords": ["hmac", "itsdangerous", "pallets", "signing", "security", "serialization", "digest"],
 	"homepage": "https://github.com/LorhanSohaky/itsdangerous#readme",

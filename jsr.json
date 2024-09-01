@@ -1,5 +1,5 @@
 {
 	"name": "@lorhansohaky/itsdangerous",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"exports": "./src/index.ts"
 }
