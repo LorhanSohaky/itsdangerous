@@ -11,8 +11,8 @@
 	"sideEffects": false,
 	"type": "module",
 	"main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
+	"module": "dist/index.mjs",
+	"types": "dist/index.d.ts",
 	"files": ["dist", "LICENSE", "README.md"],
 	"scripts": {
 		"build": "tsup",
@@ -21,19 +21,23 @@
 		"prepublishOnly": "npm run -s build",
 		"test": "vitest run"
 	},
+	"prettier": {
+		"printWidth": 120,
+		"singleQuote": true
+	},
 	"dependencies": {
 		"pako": "2.1.0",
-		"uint8array-extras": "1.1.0"
+		"uint8array-extras": "1.4.0"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "1.8.0",
+		"@biomejs/biome": "1.8.3",
 		"@types/pako": "2.0.3",
-		"tsup": "8.1.0",
-		"typescript": "5.4.5",
-		"vite": "5.2.13",
-		"vitest": "1.6.0"
+		"tsup": "8.2.4",
+		"typescript": "5.5.4",
+		"vite": "5.4.2",
+		"vitest": "2.0.5"
 	},
 	"engines": {
-		"node": ">=20"
+		"node": ">=18"
 	}
 }
