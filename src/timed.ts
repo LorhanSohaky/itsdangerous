@@ -6,18 +6,25 @@ import {Signer} from './signer.ts';
 import type {$TsFixMe, StringBuffer} from './types.ts';
 
 /**
- * Checks if a signer is an instance of TimestampSigner.
- * @param {Signer} signer - The signer to check.
- * @returns {boolean} - True if the signer is a TimestampSigner, false
- * otherwise.
+ * Determines if a given signer is an instance of `TimestampSigner`. This is
+ * useful for ensuring that a signer has timestamp-related capabilities.
+ * @param {Signer} signer - The signer instance to check.
+ * @returns {boolean} - `true` if the signer is an instance of
+ * `TimestampSigner`, otherwise `false`.
  */
 function isTimestampSigner(signer: Signer): signer is TimestampSigner {
 	return 'getTimestamp' in signer && 'timestampToDate' in signer && 'unsign' in signer;
 }
 
+/**
+ * The `TimestampSigner` class extends the functionality of the `Signer` class
+ * by including a timestamp when signing data. This allows signatures to have an
+ * expiration time, after which they are considered invalid. The `unsign` method
+ * can throw `SignatureExpiredError` if the signature is expired.
+ */
 export class TimestampSigner extends Signer {
 	/**
-	 * Gets the current timestamp in seconds.
+	 * Retrieves the current timestamp in seconds since the UNIX epoch.
 	 * @returns {number} - The current timestamp in seconds.
 	 */
 	public getTimestamp(): number {
@@ -25,10 +32,10 @@ export class TimestampSigner extends Signer {
 	}
 
 	/**
-	 * Converts a timestamp to a Date object.
-	 * @param {number} timestamp - The timestamp to convert.
-	 * @returns {Date} - The corresponding Date object.
-	 * @throws {TypeError} - If the timestamp is invalid.
+	 * Converts a timestamp (in seconds) to a JavaScript `Date` object.
+	 * @param {number} timestamp - The timestamp in seconds to convert.
+	 * @returns {Date} - The corresponding `Date` object.
+	 * @throws {TypeError} - If the provided timestamp is invalid.
 	 */
 	public timestampToDate(timestamp: number): Date {
 		const date = new Date(timestamp * 1000);
@@ -39,9 +46,9 @@ export class TimestampSigner extends Signer {
 	}
 
 	/**
-	 * Signs a value with a timestamp.
+	 * Signs a given value along with the current timestamp.
 	 * @param {StringBuffer} value - The value to sign.
-	 * @returns {Promise<Uint8Array>} - The signed value.
+	 * @returns {Promise<Uint8Array>} - The signed value as a `Uint8Array`.
 	 */
 	public override async sign(value: StringBuffer): Promise<Uint8Array> {
 		const bufferValue = wantBuffer(value);
@@ -53,11 +60,13 @@ export class TimestampSigner extends Signer {
 	}
 
 	/**
-	 * Unsigns a signed value.
-	 * @param {StringBuffer} signedValue - The signed value to unsign.
+	 * Verifies and extracts the original value from a signed value. If a `maxAge`
+	 * is provided, the method will check if the signature is older than the
+	 * allowed age.
+	 * @param {StringBuffer} signedValue - The signed value to verify and extract.
 	 * @param {number} [maxAge] - The maximum allowed age of the signature in
 	 * seconds.
-	 * @returns {Promise<Uint8Array>} - The original value.
+	 * @returns {Promise<Uint8Array>} - The original unsigned value.
 	 * @throws {BadSignatureError | BadTimeSignatureError | SignatureExpiredError}
 	 * - If the signature is invalid, the timestamp is missing or malformed, or
 	 *   the signature has expired.
@@ -65,11 +74,13 @@ export class TimestampSigner extends Signer {
 	public override async unsign(signedValue: StringBuffer, maxAge?: number): Promise<Uint8Array>;
 
 	/**
-	 * Unsigns a signed value and optionally returns the timestamp.
-	 * @param {StringBuffer} signedValue - The signed value to unsign.
+	 * Verifies and extracts the original value from a signed value, optionally
+	 * returning the timestamp.
+	 * @param {StringBuffer} signedValue - The signed value to verify and extract.
 	 * @param {number | undefined} maxAge - The maximum allowed age of the
 	 * signature in seconds.
-	 * @param {boolean} returnTimestamp - Whether to return the timestamp.
+	 * @param {boolean} returnTimestamp - Whether to return the timestamp along
+	 * with the original value.
 	 * @returns {Promise<Uint8Array | [Uint8Array, Date]>} - The original value
 	 * and optionally the timestamp.
 	 * @throws {BadSignatureError | BadTimeSignatureError | SignatureExpiredError}
@@ -149,12 +160,13 @@ export class TimestampSigner extends Signer {
 	}
 
 	/**
-	 * Validates a signed value.
+	 * Validates a signed value by verifying its signature and ensuring it has not
+	 * expired.
 	 * @param {StringBuffer} signedValue - The signed value to validate.
 	 * @param {number} [maxAge] - The maximum allowed age of the signature in
 	 * seconds.
-	 * @returns {Promise<boolean>} - True if the signature is valid, false
-	 * otherwise.
+	 * @returns {Promise<boolean>} - `true` if the signature is valid and within
+	 * the allowed age, otherwise `false`.
 	 */
 	public override async validate(signedValue: StringBuffer, maxAge?: number): Promise<boolean> {
 		try {
@@ -166,18 +178,28 @@ export class TimestampSigner extends Signer {
 	}
 }
 
+/**
+ * The `TimedSerializer` class extends the `Serializer` class, using a
+ * `TimestampSigner` to sign values with a timestamp. This allows for the
+ * creation of time-sensitive signatures that can expire.
+ */
 export class TimedSerializer extends Serializer {
 	public override signer = TimestampSigner;
 
 	/**
-	 * Parses a signed value.
+	 * Parses a signed value, verifying its signature and optionally checking its
+	 * age. If `returnTimestamp` is true, the method also returns the timestamp
+	 * associated with the signature.
 	 * @param {StringBuffer} signed - The signed value to parse.
 	 * @param {StringBuffer} [salt] - The salt to use for parsing.
 	 * @param {number} [maxAge] - The maximum allowed age of the signature in
 	 * seconds.
-	 * @param {boolean} [returnTimestamp=false] - Whether to return the timestamp.
-	 * @returns {Promise<$TsFixMe>} - The parsed payload.
-	 * @throws {TypeError} - If the signer is not an instance of TimestampSigner.
+	 * @param {boolean} [returnTimestamp=false] - Whether to return the timestamp
+	 * along with the parsed value.
+	 * @returns {Promise<$TsFixMe>} - The parsed payload, and optionally the
+	 * timestamp.
+	 * @throws {TypeError} - If the signer is not an instance of
+	 * `TimestampSigner`.
 	 */
 	public override async parse(
 		signed: StringBuffer,
@@ -203,13 +225,16 @@ export class TimedSerializer extends Serializer {
 	}
 
 	/**
-	 * Unsafely parses a signed value.
+	 * Unsafely parses a signed value without verifying the signature. This method
+	 * is intended for debugging and should be used with caution, as it does not
+	 * guarantee the integrity of the data.
 	 * @param {StringBuffer} signed - The signed value to parse.
 	 * @param {StringBuffer} [salt] - The salt to use for parsing.
 	 * @param {number} [maxAge] - The maximum allowed age of the signature in
 	 * seconds.
-	 * @returns {Promise<[boolean, $TsFixMe]>} - A tuple containing a boolean
-	 * indicating success and the parsed payload.
+	 * @returns {Promise<[boolean, $TsFixMe]>} - A tuple where the first element
+	 * is `true` if the parse succeeded, and the second element is the parsed
+	 * payload.
 	 */
 	public override async parseUnsafe(
 		signed: StringBuffer,

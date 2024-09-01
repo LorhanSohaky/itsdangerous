@@ -3,11 +3,16 @@
 	"version": "2.0.1",
 	"description": "Safely pass trusted data to untrusted environments and back.",
 	"keywords": ["hmac", "itsdangerous", "pallets", "python", "security", "serialization"],
+	"homepage": "https://github.com/hampuskraft/itsdangerous.js#readme",
+	"bugs": {
+		"url": "https://github.com/hampuskraft/itsdangerous.js/issues"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/hampuskraft/itsdangerous.js.git"
 	},
 	"license": "MIT",
+	"author": "Hampus Kraft <hello@hampuskraft.com>",
 	"sideEffects": false,
 	"type": "module",
 	"main": "dist/index.js",

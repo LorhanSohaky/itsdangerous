@@ -7,18 +7,18 @@ import {TimedSerializer} from './timed.ts';
 import type {$TsFixMe} from './types.ts';
 
 /**
- * Decompresses a given Uint8Array using pako.
- * @param {Uint8Array} buffer - The compressed data.
- * @returns {Uint8Array} The decompressed data.
+ * Decompresses a compressed Uint8Array using the pako library.
+ * @param {Uint8Array} buffer - The compressed data to decompress.
+ * @returns {Uint8Array} - The decompressed data.
  */
 function pakoDecompress(buffer: Uint8Array): Uint8Array {
 	return pako.inflate(buffer);
 }
 
 /**
- * Compresses a given Uint8Array using pako.
+ * Compresses a Uint8Array using the pako library.
  * @param {Uint8Array} buffer - The data to compress.
- * @returns {Uint8Array} The compressed data.
+ * @returns {Uint8Array} - The compressed data.
  */
 function pakoCompress(buffer: Uint8Array): Uint8Array {
 	return pako.deflate(buffer);
@@ -26,15 +26,17 @@ function pakoCompress(buffer: Uint8Array): Uint8Array {
 
 /**
  * Decodes a payload from a Uint8Array. If the payload is compressed, it
- * decompresses it.
- * @param {Uint8Array} payload - The payload to decode.
- * @returns {Uint8Array} The decoded (and possibly decompressed) payload.
- * @throws {BadPayloadError} If decoding or decompression fails.
+ * decompresses it after decoding.
+ * @param {Uint8Array} payload - The payload to decode, potentially compressed
+ * and base64 encoded.
+ * @returns {Uint8Array} - The decoded and possibly decompressed payload.
+ * @throws {BadPayloadError} - If decoding or decompression fails.
  */
 function decodePayload(payload: Uint8Array): Uint8Array {
 	let decompress = false;
 	let slicedPayload = payload;
 
+	// Check if the payload is marked as compressed by a leading dot ('.')
 	if (slicedPayload[0] === 46) {
 		slicedPayload = slicedPayload.slice(1);
 		decompress = true;
@@ -44,14 +46,14 @@ function decodePayload(payload: Uint8Array): Uint8Array {
 	try {
 		decodedPayload = base64Decode(slicedPayload);
 	} catch (error) {
-		throw new BadPayloadError('Could not base64-decode the payload due to an error', error);
+		throw new BadPayloadError('Failed to base64-decode the payload due to an error.', error);
 	}
 
 	if (decompress) {
 		try {
 			decodedPayload = pakoDecompress(decodedPayload);
 		} catch (error) {
-			throw new BadPayloadError('Could not decompress the payload after decoding', error);
+			throw new BadPayloadError('Failed to decompress the payload after decoding.', error);
 		}
 	}
 
@@ -59,10 +61,10 @@ function decodePayload(payload: Uint8Array): Uint8Array {
 }
 
 /**
- * Encodes a JSON payload into a Uint8Array. If the payload can be compressed,
- * it compresses it before encoding.
+ * Encodes a JSON payload into a compressed and base64-encoded Uint8Array if
+ * compression is beneficial.
  * @param {Uint8Array} json - The JSON payload to encode.
- * @returns {Uint8Array} The encoded (and possibly compressed) payload.
+ * @returns {Uint8Array} - The encoded (and possibly compressed) payload.
  */
 function encodePayload(json: Uint8Array): Uint8Array {
 	const compressed = pakoCompress(json);
@@ -70,6 +72,7 @@ function encodePayload(json: Uint8Array): Uint8Array {
 	const processedJson = isCompressed ? compressed : json;
 	let base64Payload = base64Encode(processedJson);
 
+	// Prepend a dot ('.') to indicate that the payload is compressed
 	if (isCompressed) {
 		base64Payload = concatUint8Arrays([wantBuffer('.'), base64Payload]);
 	}
@@ -77,13 +80,19 @@ function encodePayload(json: Uint8Array): Uint8Array {
 	return wantBuffer(base64Payload);
 }
 
+/**
+ * A serializer that provides additional functionality for URL-safe compression
+ * and encoding. This class attempts to compress and encode strings to make them
+ * shorter if necessary, ensuring the result can be safely used in URLs.
+ */
 class URLSafeSerializerBase extends Serializer {
 	/**
-	 * Parses a payload into an object. Decodes and decompresses the payload if
-	 * necessary.
+	 * Parses a compressed and encoded payload into an object. Decompresses and
+	 * decodes the payload if necessary.
 	 * @param {Uint8Array} payload - The payload to parse.
-	 * @param {DefaultSerializer} [serializer] - An optional serializer to use.
-	 * @returns {$TsFixMe} The parsed object.
+	 * @param {DefaultSerializer} [serializer] - An optional serializer to use
+	 * instead of the default.
+	 * @returns {$TsFixMe} - The parsed object.
 	 */
 	public override parsePayload(payload: Uint8Array, serializer?: DefaultSerializer): $TsFixMe {
 		const json = decodePayload(payload);
@@ -91,10 +100,10 @@ class URLSafeSerializerBase extends Serializer {
 	}
 
 	/**
-	 * Stringifies an object into a payload. Compresses and encodes the payload if
-	 * necessary.
-	 * @param {$TsFixMe} object - The object to stringify.
-	 * @returns {Uint8Array} The encoded payload.
+	 * Stringifies an object into a payload and compresses/encodes it for URL-safe
+	 * usage if necessary.
+	 * @param {$TsFixMe} object - The object to stringify and encode.
+	 * @returns {Uint8Array} - The encoded payload.
 	 */
 	public override stringifyPayload(object: $TsFixMe): Uint8Array {
 		const json = super.stringifyPayload(object);
@@ -104,13 +113,20 @@ class URLSafeSerializerBase extends Serializer {
 
 export class URLSafeSerializer extends URLSafeSerializerBase {}
 
+/**
+ * A specialized serializer that extends `TimedSerializer` with URL-safe
+ * compression and encoding. This serializer encodes the data into a string
+ * format that is safe for use in URLs, using characters from the alphabet and
+ * the symbols `'_'`, `'-'`, and `'.'`.
+ */
 export class URLSafeTimedSerializer extends TimedSerializer {
 	/**
-	 * Parses a payload into an object. Decodes and decompresses the payload if
-	 * necessary.
+	 * Parses a compressed and encoded payload into an object. Decompresses and
+	 * decodes the payload if necessary.
 	 * @param {Uint8Array} payload - The payload to parse.
-	 * @param {DefaultSerializer} [serializer] - An optional serializer to use.
-	 * @returns {$TsFixMe} The parsed object.
+	 * @param {DefaultSerializer} [serializer] - An optional serializer to use
+	 * instead of the default.
+	 * @returns {$TsFixMe} - The parsed object.
 	 */
 	public override parsePayload(payload: Uint8Array, serializer?: DefaultSerializer): $TsFixMe {
 		const json = decodePayload(payload);
@@ -118,10 +134,10 @@ export class URLSafeTimedSerializer extends TimedSerializer {
 	}
 
 	/**
-	 * Stringifies an object into a payload. Compresses and encodes the payload if
-	 * necessary.
-	 * @param {$TsFixMe} object - The object to stringify.
-	 * @returns {Uint8Array} The encoded payload.
+	 * Stringifies an object into a payload and compresses/encodes it for URL-safe
+	 * usage if necessary.
+	 * @param {$TsFixMe} object - The object to stringify and encode.
+	 * @returns {Uint8Array} - The encoded payload.
 	 */
 	public override stringifyPayload(object: $TsFixMe): Uint8Array {
 		const json = super.stringifyPayload(object);

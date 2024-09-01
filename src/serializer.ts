@@ -3,15 +3,35 @@ import {BadPayloadError, BadSignatureError} from './errors.ts';
 import {Signer, type SignerOptions, makeKeysList} from './signer.ts';
 import type {$TsFixMe, SecretKey, StringBuffer} from './types.ts';
 
+/**
+ * A serializer interface that defines methods for serializing and deserializing
+ * data. This is typically used to convert JavaScript objects to strings and
+ * vice versa.
+ */
 export type DefaultSerializer = {
+	/**
+	 * Converts a JavaScript value to a JSON string.
+	 * @param value - A JavaScript value, usually an object or array, to be
+	 * serialized.
+	 * @returns {string} - The JSON string representation of the input value.
+	 */
 	stringify(value: $TsFixMe): string;
+
+	/**
+	 * Parses a JSON string into a JavaScript object.
+	 * @param value - A JSON string to be parsed.
+	 * @returns {$TsFixMe} - The JavaScript object resulting from the parsed JSON
+	 * string.
+	 */
 	parse(value: $TsFixMe): $TsFixMe;
 };
 
 /**
- * Checks if the provided serializer is a text-based serializer.
- * @param {DefaultSerializer} serializer - The serializer to check.
- * @returns {boolean} - Whether the serializer is text-based.
+ * Determines if the provided serializer is text-based, meaning it works with
+ * text strings.
+ * @param {DefaultSerializer} serializer - The serializer to evaluate.
+ * @returns {boolean} - `true` if the serializer is text-based, otherwise
+ * `false`.
  */
 function isTextSerializer(serializer: DefaultSerializer): boolean {
 	return typeof serializer.stringify({}) === 'string';
@@ -26,36 +46,31 @@ export type SerializerOptions = {
 };
 
 /**
- * A serializer wraps a `Signer` to enable serializing and securely signing data
- * other than bytes. It can unsign to verify that the data hasn't been changed.
+ * The `Serializer` class provides methods to serialize and securely sign data,
+ * as well as verify and deserialize signed data. It uses a `Signer` to sign
+ * data and can work with custom serialization formats.
  *
- * The serializer provides `stringify` and `parse`, similar to the `JSON`
- * object, and by default uses `JSON` internally to serialize the data to bytes.
- *
- * The secret key should be a random string of bytes and should not be saved to
- * code or version control. Different salts should be used to distinguish
- * signing in different contexts.
+ * By default, it uses the JSON format for serialization, but this can be
+ * overridden with a custom serializer. The `Serializer` ensures that signed
+ * data can be verified to detect tampering.
  */
 export class Serializer {
 	/**
-	 * The default serialization module to use to serialize data to a string
-	 * internally. The default is `JSON`, but can be changed to any object that
-	 * provides `stringify` and `parse` methods.
+	 * The default serializer used to convert data to and from strings. Defaults
+	 * to the `JSON` object.
 	 */
 	public defaultSerializer: DefaultSerializer = JSON;
 
 	/**
-	 * The default `Signer` class to instantiate when signing data. The default is
-	 * `Signer`.
+	 * The default `Signer` class used for signing and verifying data. Defaults to
+	 * the `Signer` class.
 	 */
 	public defaultSigner = Signer;
 
 	/**
-	 * The list of secret keys to try for verifying signatures, from oldest to
-	 * newest. The newest (last) key is used for signing.
-	 *
-	 * This allows a key rotation system to keep a list of allowed keys and remove
-	 * expired ones.
+	 * A list of secret keys used for verifying signatures. The most recent key
+	 * (last in the list) is used for signing. This supports key rotation by
+	 * allowing old keys to verify existing signatures.
 	 */
 	public secretKeys: Uint8Array[];
 	public salt: Uint8Array;
@@ -65,7 +80,19 @@ export class Serializer {
 	public signerOpts: Partial<SignerOptions>;
 
 	/**
-	 * @param {SerializerOptions} options - Options to configure the serializer.
+	 * Creates an instance of the `Serializer` class with the specified options.
+	 * @param {SerializerOptions} options - Configuration options for the
+	 * serializer.
+	 * @param {SecretKey} options.secretKey - The primary secret key used for
+	 * signing and verification.
+	 * @param {StringBuffer} [options.salt] - Optional salt value used in signing.
+	 * Defaults to 'itsdangerous'.
+	 * @param {DefaultSerializer} [options.serializer] - Optional custom
+	 * serializer. Defaults to JSON.
+	 * @param {typeof Signer} [options.signer] - Optional custom `Signer` class.
+	 * Defaults to the `Signer` class.
+	 * @param {Partial<SignerOptions>} [options.signerOpts] - Optional additional
+	 * options for the `Signer`.
 	 */
 	public constructor({
 		secretKey,
@@ -83,13 +110,15 @@ export class Serializer {
 	}
 
 	/**
-	 * Parses the encoded object. Throws `BadPayloadError` if the payload is not
-	 * valid. The `serializer` parameter can be used to override the serializer
-	 * stored on the class. The encoded `payload` should always be a Uint8Array.
-	 * @param {Uint8Array} payload - The payload to parse.
-	 * @param {DefaultSerializer} [serializer] - Optional serializer to use.
-	 * @returns {$TsFixMe} - The parsed object.
-	 * @throws {BadPayloadError} - If the payload cannot be parsed.
+	 * Parses an encoded payload. Throws a `BadPayloadError` if the payload is
+	 * invalid or cannot be parsed.
+	 * @param {Uint8Array} payload - The encoded payload to parse, expected to be
+	 * a `Uint8Array`.
+	 * @param {DefaultSerializer} [serializer] - Optional serializer to use
+	 * instead of the class's default serializer.
+	 * @returns {$TsFixMe} - The parsed JavaScript object.
+	 * @throws {BadPayloadError} - If the payload is invalid or cannot be
+	 * deserialized.
 	 */
 	public parsePayload(payload: Uint8Array, serializer?: DefaultSerializer): $TsFixMe {
 		const useSerializer = serializer ?? this.serializer;
@@ -102,10 +131,10 @@ export class Serializer {
 	}
 
 	/**
-	 * Stringifies the encoded object. The return value is always Uint8Array. If
-	 * the internal serializer returns text, the value will be encoded as UTF-8.
-	 * @param {$TsFixMe} object - The object to stringify.
-	 * @returns {Uint8Array} - The stringified object as a Uint8Array.
+	 * Serializes a JavaScript object into a `Uint8Array`. If the serializer
+	 * produces text, it will be UTF-8 encoded.
+	 * @param {$TsFixMe} object - The object to serialize.
+	 * @returns {Uint8Array} - The serialized object as a `Uint8Array`.
 	 */
 	public stringifyPayload(object: $TsFixMe): Uint8Array {
 		const json = this.serializer.stringify(object);
@@ -114,10 +143,9 @@ export class Serializer {
 	}
 
 	/**
-	 * Creates a new instance of the signer to be used. The default implementation
-	 * uses the `Signer` base class.
-	 * @param {StringBuffer} [salt] - Optional salt to use for the signer.
-	 * @returns {Signer} - A new signer instance.
+	 * Creates a new `Signer` instance configured with the current options.
+	 * @param {StringBuffer} [salt] - Optional salt value to use for the `Signer`.
+	 * @returns {Signer} - A new `Signer` instance.
 	 */
 	public makeSigner(salt?: StringBuffer): Signer {
 		return new this.signer({
@@ -128,12 +156,10 @@ export class Serializer {
 	}
 
 	/**
-	 * Returns a signed string serialized with the internal serializer. The return
-	 * value can be either a byte or Unicode string depending on the format of the
-	 * internal serializer.
-	 * @param {$TsFixMe} object - The object to stringify and sign.
-	 * @param {StringBuffer} [salt] - Optional salt to use for signing.
-	 * @returns {Promise<string>} - The signed string.
+	 * Serializes and signs a JavaScript object, returning the signed string.
+	 * @param {$TsFixMe} object - The object to serialize and sign.
+	 * @param {StringBuffer} [salt] - Optional salt value to use for signing.
+	 * @returns {Promise<string>} - The signed string, encoded in UTF-8.
 	 */
 	public async stringify(object: $TsFixMe, salt?: StringBuffer): Promise<string> {
 		const payload = this.stringifyPayload(object);
@@ -143,11 +169,11 @@ export class Serializer {
 	}
 
 	/**
-	 * Reverse of `stringify`. Throws `BadSignatureError` if the signature
-	 * validation fails.
-	 * @param {StringBuffer} signed - The signed string to parse.
-	 * @param {StringBuffer} [salt] - Optional salt to use for parsing.
-	 * @returns {Promise<$TsFixMe>} - The parsed object.
+	 * Verifies and deserializes a signed string. Throws `BadSignatureError` if
+	 * the signature is invalid.
+	 * @param {StringBuffer} signed - The signed string to verify and parse.
+	 * @param {StringBuffer} [salt] - Optional salt value to use for verification.
+	 * @returns {Promise<$TsFixMe>} - The deserialized JavaScript object.
 	 * @throws {BadSignatureError} - If the signature validation fails.
 	 */
 	public async parse(signed: StringBuffer, salt?: StringBuffer): Promise<$TsFixMe> {
@@ -157,19 +183,15 @@ export class Serializer {
 	}
 
 	/**
-	 * Like `parse` but without verifying the signature. This is potentially very
-	 * dangerous to use depending on how your serializer works. The return value
-	 * is `(signatureValid, payload)` instead of just the payload. The first item
-	 * will be a boolean that indicates if the signature is valid. This function
-	 * never fails.
-	 *
-	 * Use it for debugging only and if you know that your serializer module is
-	 * not exploitable (for example, do not use it with a pickle serializer).
+	 * Parses a signed string without verifying the signature. Returns a tuple
+	 * where the first element indicates if the signature was valid and the second
+	 * element is the parsed payload. This method should be used with caution as
+	 * it bypasses signature validation.
 	 * @param {StringBuffer} signed - The signed string to parse.
-	 * @param {StringBuffer} [salt] - Optional salt to use for parsing.
-	 * @returns {Promise<[boolean, $TsFixMe]>} - A tuple where the first item
-	 * indicates if the signature is valid and the second item is the parsed
-	 * payload.
+	 * @param {StringBuffer} [salt] - Optional salt value to use for parsing.
+	 * @returns {Promise<[boolean, $TsFixMe]>} - A tuple where the first element
+	 * is a boolean indicating whether the signature is valid, and the second
+	 * element is the parsed object.
 	 */
 	public async parseUnsafe(signed: StringBuffer, salt?: StringBuffer): Promise<[boolean, $TsFixMe]> {
 		try {
@@ -180,10 +202,13 @@ export class Serializer {
 	}
 
 	/**
-	 * Handles errors for the `parseUnsafe` method.
-	 * @param {unknown} error - The error to handle.
-	 * @returns {[boolean, $TsFixMe]} - A tuple where the first item indicates if
-	 * the signature is valid and the second item is `null`.
+	 * Handles errors encountered in the `parseUnsafe` method, distinguishing
+	 * between known errors and others.
+	 * @param {unknown} error - The error encountered during parsing.
+	 * @returns {[boolean, $TsFixMe]} - A tuple where the first element is
+	 * `false`, indicating the signature was invalid, and the second element is
+	 * `null`.
+	 * @throws {unknown} - Rethrows the error if it is not a known error type.
 	 */
 	protected _handleParseUnsafeError(error: unknown): [boolean, $TsFixMe] {
 		if (error instanceof BadSignatureError || error instanceof BadPayloadError) {

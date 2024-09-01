@@ -4,11 +4,14 @@ import {BadSignatureError} from './errors.ts';
 import type {SecretKey, StringBuffer} from './types.ts';
 
 /**
- * Generates an HMAC digest.
- * @param {string} algo - The hashing algorithm to use.
- * @param {Uint8Array} key - The key for HMAC.
- * @param {Uint8Array} data - The data to sign.
- * @returns {Promise<Uint8Array>} The generated HMAC digest.
+ * Generates an HMAC digest for the given data using the specified hashing
+ * algorithm and key.
+ * @param {string} algo - The name of the hashing algorithm to use (e.g.,
+ * 'SHA-256').
+ * @param {Uint8Array} key - The key used for the HMAC.
+ * @param {Uint8Array} data - The data to be signed.
+ * @returns {Promise<Uint8Array>} - A promise that resolves to the generated
+ * HMAC digest as a `Uint8Array`.
  */
 async function hmacDigest(algo: string, key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
 	const cryptoKey = await crypto.subtle.importKey('raw', key, {name: 'HMAC', hash: {name: algo}}, false, ['sign']);
@@ -17,36 +20,47 @@ async function hmacDigest(algo: string, key: Uint8Array, data: Uint8Array): Prom
 }
 
 /**
- * Generates a hash digest.
- * @param {string} algo - The hashing algorithm to use.
- * @param {Uint8Array} data - The data to hash.
- * @returns {Promise<Uint8Array>} The generated hash digest.
+ * Generates a hash digest for the given data using the specified hashing
+ * algorithm.
+ * @param {string} algo - The name of the hashing algorithm to use (e.g.,
+ * 'SHA-256').
+ * @param {Uint8Array} data - The data to be hashed.
+ * @returns {Promise<Uint8Array>} - A promise that resolves to the generated
+ * hash digest as a `Uint8Array`.
  */
 async function hashDigest(algo: string, data: Uint8Array): Promise<Uint8Array> {
 	const hash = await crypto.subtle.digest(algo, data);
 	return new Uint8Array(hash);
 }
 
+/**
+ * A base class for implementing signature algorithms. Subclasses must implement
+ * the `getSignature` method.
+ */
 export class SigningAlgorithm {
 	public digestMethod?: string;
 
 	/**
-	 * Gets the signature for the provided key and value.
-	 * @param {Uint8Array} _key - The key for signing.
-	 * @param {Uint8Array} _value - The value to sign.
-	 * @returns {Promise<Uint8Array>} The signature.
-	 * @throws {Error} Not implemented.
+	 * Generates a signature for the provided key and value. Subclasses should
+	 * override this method to provide specific signature generation logic.
+	 * @param {Uint8Array} _key - The key used for signing.
+	 * @param {Uint8Array} _value - The value to be signed.
+	 * @returns {Promise<Uint8Array>} - A promise that resolves to the generated
+	 * signature as a `Uint8Array`.
+	 * @throws {Error} - Always throws an error indicating the method is not
+	 * implemented.
 	 */
 	public async getSignature(_key: Uint8Array, _value: Uint8Array): Promise<Uint8Array> {
 		throw new Error('Not implemented');
 	}
 
 	/**
-	 * Verifies the provided signature.
-	 * @param {Uint8Array} key - The key for verification.
-	 * @param {Uint8Array} value - The value to verify.
-	 * @param {Uint8Array} sig - The signature to verify against.
-	 * @returns {Promise<boolean>} Whether the signature is valid.
+	 * Verifies the provided signature against the given key and value.
+	 * @param {Uint8Array} key - The key used for verification.
+	 * @param {Uint8Array} value - The value that was signed.
+	 * @param {Uint8Array} sig - The signature to verify.
+	 * @returns {Promise<boolean>} - A promise that resolves to `true` if the
+	 * signature is valid, otherwise `false`.
 	 */
 	public async verifySignature(key: Uint8Array, value: Uint8Array, sig: Uint8Array): Promise<boolean> {
 		try {
@@ -58,23 +72,33 @@ export class SigningAlgorithm {
 	}
 }
 
+/**
+ * A signature algorithm that does not perform any signing and always returns an
+ * empty signature.
+ */
 export class NoneAlgorithm extends SigningAlgorithm {
 	/**
-	 * Gets an empty signature.
-	 * @returns {Promise<Uint8Array>} An empty Uint8Array.
+	 * Returns an empty signature.
+	 * @returns {Promise<Uint8Array>} - A promise that resolves to an empty
+	 * `Uint8Array`.
 	 */
 	public override async getSignature(_key: Uint8Array, _value: Uint8Array): Promise<Uint8Array> {
 		return new Uint8Array([]);
 	}
 }
 
+/**
+ * A signature algorithm that generates signatures using HMAC (Hash-based
+ * Message Authentication Code).
+ */
 export class HMACAlgorithm extends SigningAlgorithm {
 	public override digestMethod: string;
-	public defaultDigestMethod = 'SHA-1';
+	public defaultDigestMethod = 'SHA-1' as const;
 
 	/**
-	 * Creates an instance of HMACAlgorithm.
-	 * @param {string} [digestMethod] - The digest method to use.
+	 * Creates an instance of `HMACAlgorithm` with an optional digest method.
+	 * @param {string} [digestMethod] - The digest method to use (e.g.,
+	 * 'SHA-256'). Defaults to 'SHA-1'.
 	 */
 	public constructor(digestMethod?: string) {
 		super();
@@ -82,10 +106,11 @@ export class HMACAlgorithm extends SigningAlgorithm {
 	}
 
 	/**
-	 * Gets the HMAC signature.
-	 * @param {Uint8Array} key - The key for HMAC.
-	 * @param {Uint8Array} value - The value to sign.
-	 * @returns {Promise<Uint8Array>} The HMAC signature.
+	 * Generates an HMAC signature for the provided key and value.
+	 * @param {Uint8Array} key - The key used for HMAC.
+	 * @param {Uint8Array} value - The value to be signed.
+	 * @returns {Promise<Uint8Array>} - A promise that resolves to the HMAC
+	 * signature as a `Uint8Array`.
 	 */
 	public override async getSignature(key: Uint8Array, value: Uint8Array): Promise<Uint8Array> {
 		return await hmacDigest(this.digestMethod, key, value);
@@ -93,9 +118,11 @@ export class HMACAlgorithm extends SigningAlgorithm {
 }
 
 /**
- * Converts the provided secret key into a list of Uint8Array.
- * @param {SecretKey} secretKey - The secret key to convert.
- * @returns {Uint8Array[]} The list of Uint8Array.
+ * Converts a secret key into an array of `Uint8Array` objects.
+ * @param {SecretKey} secretKey - The secret key to convert. It can be a string,
+ * `Uint8Array`, or an array of such values.
+ * @returns {Uint8Array[]} - An array of `Uint8Array` representing the secret
+ * key(s).
  */
 export function makeKeysList(secretKey: SecretKey): Uint8Array[] {
 	if (typeof secretKey === 'string' || secretKey instanceof Uint8Array) {
@@ -104,6 +131,9 @@ export function makeKeysList(secretKey: SecretKey): Uint8Array[] {
 	return [...secretKey].map((x) => wantBuffer(x));
 }
 
+/**
+ * Enum representing the available key derivation methods.
+ */
 export enum KeyDerivation {
 	Concat = 'concat',
 	DjangoConcat = 'django-concat',
@@ -111,6 +141,9 @@ export enum KeyDerivation {
 	None = 'none',
 }
 
+/**
+ * Defines the options that can be provided to a `Signer` instance.
+ */
 export type SignerOptions = {
 	secretKey: SecretKey;
 	salt?: StringBuffer;
@@ -120,8 +153,13 @@ export type SignerOptions = {
 	algorithm?: SigningAlgorithm;
 };
 
+/**
+ * The `Signer` class securely signs data and verifies that it hasn't been
+ * tampered with by checking the signature. It supports various signing
+ * algorithms and key derivation methods.
+ */
 export class Signer {
-	public defaultDigestMethod = 'SHA-1';
+	public defaultDigestMethod = 'SHA-1' as const;
 	public defaultKeyDerivation = KeyDerivation.DjangoConcat;
 	public secretKeys: Uint8Array[];
 	public separator: Uint8Array;
@@ -131,8 +169,20 @@ export class Signer {
 	public algorithm: SigningAlgorithm;
 
 	/**
-	 * Creates an instance of Signer.
-	 * @param {SignerOptions} options - The options for the signer.
+	 * Creates an instance of `Signer` with the provided options.
+	 * @param {SignerOptions} options - Configuration options for the signer.
+	 * @param {SecretKey} options.secretKey - The secret key(s) used for signing
+	 * and verification. Supports key rotation by using a list of keys.
+	 * @param {StringBuffer} [options.salt] - An additional salt value to combine
+	 * with the secret key. Defaults to `"itsdangerous.Signer"`.
+	 * @param {StringBuffer} [options.separator] - The separator between the value
+	 * and the signature. Defaults to `"."`.
+	 * @param {KeyDerivation} [options.keyDerivation] - The method for deriving
+	 * the signing key. Defaults to `"django-concat"`.
+	 * @param {string} [options.digestMethod] - The hash function to use for HMAC
+	 * signatures. Defaults to `"SHA-1"`.
+	 * @param {SigningAlgorithm} [options.algorithm] - The signing algorithm to
+	 * use. Defaults to `HMACAlgorithm`.
 	 */
 	public constructor({
 		secretKey,
@@ -158,9 +208,13 @@ export class Signer {
 	}
 
 	/**
-	 * Derives a key using the specified key derivation method.
-	 * @param {StringBuffer} [secretKey] - The secret key to derive from.
-	 * @returns {Promise<Uint8Array>} The derived key.
+	 * Derives a key from the secret key using the specified key derivation
+	 * method.
+	 * @param {StringBuffer} [secretKey] - The secret key to derive the key from.
+	 * If not provided, the last key in the `secretKeys` list is used.
+	 * @returns {Promise<Uint8Array>} - A promise that resolves to the derived key
+	 * as a `Uint8Array`.
+	 * @throws {TypeError} - If an invalid key derivation method is provided.
 	 */
 	public async deriveKey(secretKey?: StringBuffer): Promise<Uint8Array> {
 		// biome-ignore lint/style/noNonNullAssertion: <explanation>
@@ -184,9 +238,10 @@ export class Signer {
 	}
 
 	/**
-	 * Generates a signature for the given value.
-	 * @param {StringBuffer} value - The value to sign.
-	 * @returns {Promise<Uint8Array>} The generated signature.
+	 * Generates a signature for the provided value using the derived key.
+	 * @param {StringBuffer} value - The value to be signed.
+	 * @returns {Promise<Uint8Array>} - A promise that resolves to the generated
+	 * signature as a `Uint8Array`.
 	 */
 	public async getSignature(value: StringBuffer): Promise<Uint8Array> {
 		const key = await this.deriveKey();
@@ -195,9 +250,10 @@ export class Signer {
 	}
 
 	/**
-	 * Signs the provided value.
-	 * @param {StringBuffer} value - The value to sign.
-	 * @returns {Promise<Uint8Array>} The signed value.
+	 * Signs the provided value by appending a signature to it.
+	 * @param {StringBuffer} value - The value to be signed.
+	 * @returns {Promise<Uint8Array>} - A promise that resolves to the signed
+	 * value as a `Uint8Array`.
 	 */
 	public async sign(value: StringBuffer): Promise<Uint8Array> {
 		const bufferValue = wantBuffer(value);
@@ -208,8 +264,9 @@ export class Signer {
 	/**
 	 * Verifies if the provided signature is valid for the given value.
 	 * @param {StringBuffer} value - The value to verify.
-	 * @param {StringBuffer} sig - The signature to verify.
-	 * @returns {Promise<boolean>} Whether the signature is valid.
+	 * @param {StringBuffer} sig - The signature to verify against.
+	 * @returns {Promise<boolean>} - A promise that resolves to `true` if the
+	 * signature is valid, otherwise `false`.
 	 */
 	public async verifySignature(value: StringBuffer, sig: StringBuffer): Promise<boolean> {
 		let decodedSig: Uint8Array;
@@ -231,12 +288,13 @@ export class Signer {
 	}
 
 	/**
-	 * Unsigns the signed value and returns the original value if the signature is
-	 * valid.
+	 * Unsigns the signed value to retrieve the original value, verifying the
+	 * signature in the process.
 	 * @param {StringBuffer} signedValue - The signed value to unsign.
-	 * @returns {Promise<Uint8Array>} The original value.
-	 * @throws {BadSignatureError} If the signature is invalid or the separator is
-	 * not found.
+	 * @returns {Promise<Uint8Array>} - A promise that resolves to the original
+	 * value as a `Uint8Array`.
+	 * @throws {BadSignatureError} - If the signature is invalid or the separator
+	 * is not found.
 	 */
 	public async unsign(signedValue: StringBuffer): Promise<Uint8Array> {
 		const signedBuffer = wantBuffer(signedValue);
@@ -260,9 +318,10 @@ export class Signer {
 	}
 
 	/**
-	 * Validates the signed value.
+	 * Validates a signed value by verifying its signature.
 	 * @param {StringBuffer} signedValue - The signed value to validate.
-	 * @returns {Promise<boolean>} Whether the signed value is valid.
+	 * @returns {Promise<boolean>} - A promise that resolves to `true` if the
+	 * signed value is valid, otherwise `false`.
 	 */
 	public async validate(signedValue: StringBuffer): Promise<boolean> {
 		try {
