@@ -1,0 +1,10 @@
+pre-commit:
+  commands:
+    lint:
+      glob: '*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}'
+      run: node_modules/.bin/biome lint --staged --error-on-warnings --write {staged_files}
+      stage_fixed: true
+    format:
+      glob: '*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc}'
+      run: node_modules/.bin/biome format --staged --write {staged_files}
+      stage_fixed: true

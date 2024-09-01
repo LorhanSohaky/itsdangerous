@@ -22,8 +22,9 @@
 	"scripts": {
 		"build": "tsc && tsup",
 		"format": "prettier --write **/*.{md,yaml} && pnpm biome format --write . && pnpm biome check --write .",
-		"lint": "biome lint --write --unsafe .",
+		"lint": "biome lint --error-on-warnings --write .",
 		"prepublishOnly": "npm run -s build",
+		"postinstall": "lefthook install",
 		"test": "vitest run"
 	},
 	"prettier": {
@@ -39,6 +40,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "1.8.3",
 		"@types/pako": "2.0.3",
+		"lefthook": "1.7.14",
 		"prettier": "3.3.3",
 		"tsup": "8.2.4",
 		"typescript": "5.5.4",
