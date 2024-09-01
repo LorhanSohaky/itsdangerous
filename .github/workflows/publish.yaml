@@ -5,7 +5,7 @@ on:
     types: [published]
 
 jobs:
-  publish on jsr:
+  publish-on-jsr:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: npx jsr publish
-  publish on npm:
+  publish-on-npm:
     runs-on: ubuntu-latest
     permissions:
       contents: read
