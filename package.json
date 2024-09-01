@@ -1,15 +1,15 @@
 {
-	"name": "itsdangerous.js",
-	"version": "2.0.2",
+	"name": "@lorhansohaky/itsdangerous",
+	"version": "0.0.0",
 	"description": "Safely pass trusted data to untrusted environments and back.",
-	"keywords": ["hmac", "itsdangerous", "pallets", "python", "security", "serialization"],
-	"homepage": "https://github.com/hampuskraft/itsdangerous.js#readme",
+	"keywords": ["hmac", "itsdangerous", "pallets", "signing", "security", "serialization", "digest"],
+	"homepage": "https://github.com/LorhanSohaky/itsdangerous#readme",
 	"bugs": {
-		"url": "https://github.com/hampuskraft/itsdangerous.js/issues"
+		"url": "https://github.com/LorhanSohaky/itsdangerous/issues"
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/hampuskraft/itsdangerous.js.git"
+		"url": "git+https://github.com/LorhanSohaky/itsdangerous.git"
 	},
 	"license": "MIT",
 	"author": "Hampus Kraft <hello@hampuskraft.com>",
@@ -31,7 +31,7 @@
 		"bracketSpacing": false,
 		"printWidth": 120,
 		"singleQuote": true,
-		"useTabs": true
+		"useTabs": false
 	},
 	"dependencies": {
 		"pako": "2.1.0",

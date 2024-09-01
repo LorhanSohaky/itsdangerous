@@ -26,29 +26,20 @@ jobs:
 
   typescript:
     name: Type checking
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-20.04, ubuntu-22.04, macos-12, macos-13, windows-2019]
-        node: [18, 20, 21, 22]
-
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node.js and Install Dependencies
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: |
-            - recursive: true
-              args: [--frozen-lockfile, --strict-peer-dependencies]
+        uses: actions/setup-node@v4
         env:
-          NODE_VERSION: ${{ matrix.node }}
+          NODE_VERSION: [18, 20, 21, 22]
 
+      - name: Install dependencies
+        run: npm ci
       - name: Run type checking
-        run: pnpm run build
+        run: npm run build
 
   format:
     name: Formatting
@@ -61,7 +52,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install Prettier
         run: npm install --global prettier
@@ -86,14 +77,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js and Install Dependencies
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: |
-            - recursive: true
-              args: [--frozen-lockfile, --strict-peer-dependencies]
+        uses: actions/setup-node@v4
         env:
           NODE_VERSION: ${{ matrix.node }}
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run type checking
+        run: npm run build
 
       - name: Run tests
-        run: pnpm run test
+        run: npm run test

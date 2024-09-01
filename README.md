@@ -1,18 +1,13 @@
-<!-- prettier-ignore -->
-> [!IMPORTANT]
-> **This repository is archived and considered feature complete.**
-> It will no longer accept new contributions or feature requests at this time.
-
 <div align="center">
 
-# itsdangerous.js
+# itsdangerous
 
 **... so better sign this.**
 
 > Note: This is an unofficial JavaScript port of the Python library
 > [itsdangerous](https://github.com/pallets/itsdangerous).
 
-`itsdangerous.js` provides various helpers for securely serializing data and passing it through untrusted environments. The data is cryptographically signed to ensure that it hasn't been tampered with during transmission or storage.
+`@lorhansohaky/itsdangerous` provides various helpers for securely serializing data and passing it through untrusted environments. The data is cryptographically signed to ensure that it hasn't been tampered with during transmission or storage.
 
 Key features include customizable serialization, optional compression, timestamp support for expiring signatures, and compatibility with various cryptographic algorithms.
 
@@ -26,10 +21,10 @@ Key features include customizable serialization, optional compression, timestamp
 
 ## Status
 
-<a href="https://github.com/hampuskraft/itsdangerous.js/blob/master/LICENSE.md"><img alt="License" src="https://img.shields.io/github/license/hampuskraft/itsdangerous.js?style=flat-square"></a>
-<a href="https://github.com/hampuskraft/itsdangerous.js/issues"><img alt="Issues" src="https://img.shields.io/github/issues/hampuskraft/itsdangerous.js?style=flat-square"></a>
-<a href="https://github.com/hampuskraft/itsdangerous.js/pulls"><img alt="Pull Requests" src="https://img.shields.io/github/issues-pr/hampuskraft/itsdangerous.js?style=flat-square"></a>
-<a href="https://github.com/hampuskraft/itsdangerous.js/actions"><img alt="Actions" src="https://img.shields.io/github/checks-status/hampuskraft/itsdangerous.js/main?style=flat-square"></a>
+<a href="https://github.com/LorhanSohaky/itsdangerous/blob/master/LICENSE.md"><img alt="License" src="https://img.shields.io/github/license/LorhanSohaky/itsdangerous?style=flat-square"></a>
+<a href="https://github.com/LorhanSohaky/itsdangerous/issues"><img alt="Issues" src="https://img.shields.io/github/issues/LorhanSohaky/itsdangerous?style=flat-square"></a>
+<a href="https://github.com/LorhanSohaky/itsdangerous/pulls"><img alt="Pull Requests" src="https://img.shields.io/github/issues-pr/LorhanSohaky/itsdangerous?style=flat-square"></a>
+<a href="https://github.com/LorhanSohaky/itsdangerous/actions"><img alt="Actions" src="https://img.shields.io/github/checks-status/LorhanSohaky/itsdangerous/main?style=flat-square"></a>
 
 ## Features
 
@@ -43,7 +38,7 @@ Key features include customizable serialization, optional compression, timestamp
 ## Installation
 
 ```sh
-npm install itsdangerous.js
+npm install @lorhansohaky/itsdangerous
 ```
 
 ## Usage
@@ -62,7 +57,7 @@ Below are some practical use cases and basic examples. For more examples, see th
 #### URL-Safe Serialization
 
 ```js
-import {URLSafeSerializer} from 'itsdangerous.js';
+import {URLSafeSerializer} from '@lorhansohaky/itsdangerous';
 
 const authSerializer = new URLSafeSerializer({secretKey: 'secret key', salt: 'auth'});
 const token = await authSerializer.stringify({id: 5, name: 'itsdangerous'});
@@ -76,19 +71,19 @@ console.log(data.name); // itsdangerous
 #### Timed Signatures
 
 ```js
-import {URLSafeTimedSerializer} from 'itsdangerous.js';
+import {URLSafeTimedSerializer} from '@lorhansohaky/itsdangerous';
 
 const authSerializer = new URLSafeTimedSerializer({secretKey: 'secret key', salt: 'auth'});
 const token = await authSerializer.stringify({id: 5, name: 'itsdangerous'});
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 try {
-	await sleep(6000);
-	// This will throw an error if the token has expired
-	const data = await authSerializer.parse(token, undefined, 5, true);
+  await sleep(6000);
+  // This will throw an error if the token has expired
+  const data = await authSerializer.parse(token, undefined, 5, true);
 } catch (err) {
-	console.log(err.name); // SignatureExpiredError
-	console.log(err.message); // Signature age 6 > 5 seconds
+  console.log(err.name); // SignatureExpiredError
+  console.log(err.message); // Signature age 6 > 5 seconds
 }
 ```
 
