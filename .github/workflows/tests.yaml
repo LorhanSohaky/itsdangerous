@@ -58,11 +58,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Prettier
+        run: npm install --global prettier
+
       - name: Setup Biome
         uses: biomejs/setup-biome@v2
 
       - name: Run formatting
-        run: biome format
+        run: biome format && prettier --check **/*.{md,yaml}
 
   unit:
     name: Unit tests
