@@ -1,3 +1,8 @@
+<!-- prettier-ignore -->
+> [!IMPORTANT]
+> **This repository is archived and considered feature complete.**
+> It will no longer accept new contributions or feature requests at this time.
+
 <div align="center">
 
 # itsdangerous.js
