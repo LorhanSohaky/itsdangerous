@@ -45,7 +45,7 @@
 		"tsup": "8.3.5",
 		"typescript": "5.5.4",
 		"vite": "5.4.11",
-		"vitest": "2.1.5"
+		"vitest": "2.1.8"
 	},
 	"engines": {
 		"node": ">=18"
