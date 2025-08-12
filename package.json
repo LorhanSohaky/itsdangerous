@@ -38,7 +38,7 @@
 		"uint8array-extras": "1.4.0"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "1.9.4",
+		"@biomejs/biome": "2.1.4",
 		"@types/pako": "2.0.3",
 		"lefthook": "1.12.2",
 		"prettier": "3.6.2",
