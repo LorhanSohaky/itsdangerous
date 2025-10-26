@@ -217,7 +217,7 @@ export class Signer {
 	 * @throws {TypeError} - If an invalid key derivation method is provided.
 	 */
 	public async deriveKey(secretKey?: StringBuffer): Promise<Uint8Array> {
-		// biome-ignore lint/style/noNonNullAssertion: <explanation>
+		// biome-ignore lint/style/noNonNullAssertion: false positive
 		const derivedSecretKey = secretKey == null ? this.secretKeys.at(-1)! : wantBuffer(secretKey);
 
 		switch (this.keyDerivation) {

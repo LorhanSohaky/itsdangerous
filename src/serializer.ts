@@ -1,6 +1,6 @@
 import {wantBuffer} from './encoding.ts';
 import {BadPayloadError, BadSignatureError} from './errors.ts';
-import {Signer, type SignerOptions, makeKeysList} from './signer.ts';
+import {makeKeysList, Signer, type SignerOptions} from './signer.ts';
 import type {$TsFixMe, SecretKey, StringBuffer} from './types.ts';
 
 /**
