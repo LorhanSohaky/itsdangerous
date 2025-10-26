@@ -14,8 +14,16 @@ import type {SecretKey, StringBuffer} from './types.ts';
  * HMAC digest as a `Uint8Array`.
  */
 async function hmacDigest(algo: string, key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
-	const cryptoKey = await crypto.subtle.importKey('raw', key, {name: 'HMAC', hash: {name: algo}}, false, ['sign']);
-	const signature = await crypto.subtle.sign('HMAC', cryptoKey, data);
+	const keyArrayBuffer = _uint8ArrayToArrayBuffer(key);
+	const cryptoKey = await crypto.subtle.importKey(
+		'raw',
+		new Uint8Array(keyArrayBuffer),
+		{name: 'HMAC', hash: {name: algo}},
+		false,
+		['sign'],
+	);
+	const arrayBuffer = _uint8ArrayToArrayBuffer(data);
+	const signature = await crypto.subtle.sign('HMAC', cryptoKey, arrayBuffer);
 	return new Uint8Array(signature);
 }
 
@@ -29,7 +37,8 @@ async function hmacDigest(algo: string, key: Uint8Array, data: Uint8Array): Prom
  * hash digest as a `Uint8Array`.
  */
 async function hashDigest(algo: string, data: Uint8Array): Promise<Uint8Array> {
-	const hash = await crypto.subtle.digest(algo, data);
+	const arrayBuffer = _uint8ArrayToArrayBuffer(data);
+	const hash = await crypto.subtle.digest(algo, arrayBuffer);
 	return new Uint8Array(hash);
 }
 
@@ -334,4 +343,12 @@ export class Signer {
 			throw error;
 		}
 	}
+}
+
+function _uint8ArrayToArrayBuffer(data: Uint8Array): ArrayBuffer {
+	const arrayBuffer =
+		data.buffer instanceof ArrayBuffer && data.byteOffset === 0 && data.byteLength === data.buffer.byteLength
+			? data.buffer
+			: data.slice().buffer;
+	return arrayBuffer;
 }
