@@ -13,8 +13,9 @@ export {
 	BadTimeSignatureError,
 	SignatureExpiredError,
 } from './errors.ts';
-export {Serializer} from './serializer.ts';
 export type {DefaultSerializer, SerializerOptions} from './serializer.ts';
+export {Serializer} from './serializer.ts';
+export type {SignerOptions} from './signer.ts';
 export {
 	HMACAlgorithm,
 	KeyDerivation,
@@ -22,6 +23,5 @@ export {
 	Signer,
 	SigningAlgorithm,
 } from './signer.ts';
-export type {SignerOptions} from './signer.ts';
 export {TimedSerializer, TimestampSigner} from './timed.ts';
 export {URLSafeSerializer, URLSafeTimedSerializer} from './url-safe.ts';

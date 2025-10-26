@@ -8,7 +8,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 try {
 	await sleep(6000);
 	// This will throw an error if the token has expired
-	const data = await authSerializer.parse(token, undefined, 5);
+	await authSerializer.parse(token, undefined, 5);
 } catch (err) {
 	console.log(err.name); // SignatureExpiredError
 	console.log(err.message); // Signature age 6 > 5 seconds

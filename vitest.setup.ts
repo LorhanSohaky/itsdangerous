@@ -1,4 +1,4 @@
-// biome-ignore lint/correctness/noNodejsModules: <explanation>
+// biome-ignore lint/correctness/noNodejsModules: needed for cryptography
 import crypto from 'node:crypto';
 
 Object.defineProperty(global, 'crypto', {

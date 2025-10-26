@@ -92,7 +92,7 @@ describe('timedSerializer', () => {
 		vi.setSystemTime(mockDate.getTime() + 20_000);
 		const error = await withThrows(async () => serializer.parse(signed, undefined, 10), BadTimeSignatureError);
 		expect(error.dateSigned).toBeInstanceOf(mockDate.constructor);
-		// biome-ignore lint/style/noNonNullAssertion: <explanation>
+		// biome-ignore lint/style/noNonNullAssertion: false positive
 		expect(serializer.parsePayload(error.payload!)).toEqual(value);
 	});
 
