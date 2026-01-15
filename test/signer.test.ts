@@ -70,13 +70,15 @@ describe('signer', () => {
 		expect(error.message).includes('separator cannot be used');
 	});
 
-	test.each([KeyDerivation.Concat, KeyDerivation.DjangoConcat, KeyDerivation.HMAC, KeyDerivation.None])(
-		'keyDerivation',
-		async (keyDerivation) => {
-			const signer = signerFactory({keyDerivation});
-			expect(new TextDecoder().decode(await signer.unsign(await signer.sign('value')))).toEqual('value');
-		},
-	);
+	test.each([
+		KeyDerivation.Concat,
+		KeyDerivation.DjangoConcat,
+		KeyDerivation.HMAC,
+		KeyDerivation.None,
+	])('keyDerivation', async (keyDerivation) => {
+		const signer = signerFactory({keyDerivation});
+		expect(new TextDecoder().decode(await signer.unsign(await signer.sign('value')))).toEqual('value');
+	});
 
 	test('invalidKeyDerivation', async () => {
 		// @ts-expect-error this is testing invalid input
@@ -89,16 +91,18 @@ describe('signer', () => {
 		expect(new TextDecoder().decode(await signer.unsign(await signer.sign('value')))).toEqual('value');
 	});
 
-	test.each([undefined, new NoneAlgorithm(), new HMACAlgorithm(), new ReverseAlgorithm()])(
-		'algorithm',
-		async (algorithm) => {
-			const signer = signerFactory({algorithm});
-			expect(new TextDecoder().decode(await signer.unsign(await signer.sign('value')))).toEqual('value');
-			if (algorithm == null) {
-				expect(signer.algorithm.digestMethod).toEqual(signer.digestMethod);
-			}
-		},
-	);
+	test.each([
+		undefined,
+		new NoneAlgorithm(),
+		new HMACAlgorithm(),
+		new ReverseAlgorithm(),
+	])('algorithm', async (algorithm) => {
+		const signer = signerFactory({algorithm});
+		expect(new TextDecoder().decode(await signer.unsign(await signer.sign('value')))).toEqual('value');
+		if (algorithm == null) {
+			expect(signer.algorithm.digestMethod).toEqual(signer.digestMethod);
+		}
+	});
 
 	test('secretKeys', async () => {
 		let signer = new Signer({secretKey: 'a'});
