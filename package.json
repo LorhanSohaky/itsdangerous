@@ -52,7 +52,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.3.14",
 		"@types/pako": "2.0.4",
-		"lefthook": "2.0.16",
+		"lefthook": "2.1.0",
 		"prettier": "3.8.1",
 		"tsup": "8.5.1",
 		"typescript": "5.9.3",
