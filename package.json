@@ -46,12 +46,12 @@
 		"useTabs": false
 	},
 	"dependencies": {
-		"pako": "2.2.0",
+		"pako": "3.0.2",
 		"uint8array-extras": "1.5.0"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.1",
-		"@types/pako": "2.0.4",
+		"@types/pako": "3.0.0",
 		"lefthook": "2.1.14",
 		"prettier": "3.9.8",
 		"tsup": "8.5.1",
